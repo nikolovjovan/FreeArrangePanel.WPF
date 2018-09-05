@@ -2,7 +2,7 @@
 using System.Windows.Documents;
 using System.Windows.Media;
 
-namespace FreeArrangePanel
+namespace FreeArrangePanel.Adorners
 {
     internal class DragSelectionAdorner : Adorner
     {

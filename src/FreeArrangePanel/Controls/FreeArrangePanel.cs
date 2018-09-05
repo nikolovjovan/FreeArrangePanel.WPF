@@ -6,7 +6,9 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace FreeArrangePanel
+using FreeArrangePanel.Adorners;
+
+namespace FreeArrangePanel.Controls
 {
     public class FreeArrangePanel : Canvas
     {
@@ -57,6 +59,8 @@ namespace FreeArrangePanel
 
             if (mDragSelecting) StopDragging();
 
+            DeselectElements();
+
             mMouseDown = true;
             mDragSelectionAdorner.StartPoint = mDragSelectionAdorner.EndPoint = e.GetPosition(this);
 
@@ -75,7 +79,7 @@ namespace FreeArrangePanel
             if (mDragSelecting)
             {
                 StopDragging();
-                SelectChildren();
+                SelectElements();
             }
 
             if (!mMouseDown) return;
@@ -89,7 +93,7 @@ namespace FreeArrangePanel
         protected override void OnPreviewMouseMove(MouseEventArgs e)
         {
             base.OnPreviewMouseMove(e);
-            
+
             if (mDragSelecting) Drag(e.GetPosition(this));
             else if (mMouseDown)
             {
@@ -98,7 +102,7 @@ namespace FreeArrangePanel
 
                 if (dragDistance > mDragThreshold)
                 {
-                    mSelectedElements.Clear();
+                    DeselectElements();
                     mDragSelecting = true;
                     StartDragging(e.GetPosition(this));
                 }
@@ -113,6 +117,7 @@ namespace FreeArrangePanel
             var adornerLayer = AdornerLayer.GetAdornerLayer(this);
             if (starting) adornerLayer?.Add(mDragSelectionAdorner);
             adornerLayer?.Update();
+            SelectElements();
         }
 
         private void StartDragging(Point endPoint)
@@ -127,25 +132,50 @@ namespace FreeArrangePanel
             adornerLayer?.Remove(mDragSelectionAdorner);
         }
 
-        private void SelectChildren()
+        private void SelectElements()
         {
             var dragRect = new Rect(mDragSelectionAdorner.StartPoint, mDragSelectionAdorner.EndPoint);
-            Console.WriteLine("Drag rect: " + dragRect);
+            //Console.WriteLine("Drag rect: " + dragRect);
 
             foreach (UIElement child in Children)
             {
                 var childRect = new Rect(new Point(GetLeft(child), GetTop(child)), child.RenderSize);
                 var intersection = Rect.Intersect(dragRect, childRect);
-                Console.WriteLine("Child: " + child + " Rect: " + childRect);
+                //Console.WriteLine("Child: " + child + " Rect: " + childRect);
                 var percentage = intersection.IsEmpty
                     ? 0.0
                     : intersection.Width * intersection.Height / (childRect.Width * childRect.Height);
-                Console.WriteLine("Intersection: " + intersection + " Percentage: " + percentage);
-                if (percentage > mSelectionThreshold) mSelectedElements.AddLast(child);
+                //Console.WriteLine("Intersection: " + intersection + " Percentage: " + percentage);
+                if (percentage > mSelectionThreshold) SelectElement(child);
+                else DeselectElement(child, true);
             }
 
-            Console.WriteLine("Selected elements...");
+            //Console.WriteLine("Selected elements...");
             foreach (var selectedElement in mSelectedElements) Console.WriteLine(selectedElement.ToString());
         }
+
+        private void DeselectElements()
+        {
+            foreach (UIElement child in Children) DeselectElement(child);
+            mSelectedElements.Clear();
+        }
+
+        private void SelectElement(UIElement child)
+        {
+            if (mSelectedElements.Contains(child)) return;
+            mSelectedElements.AddLast(child);
+            var adornerLayer = AdornerLayer.GetAdornerLayer(child);
+            adornerLayer?.Add(new ArrangeAdorner(child));
+        }
+
+        private void DeselectElement(UIElement child, bool remove = false)
+        {
+            if (remove) mSelectedElements.Remove(child);
+            var adornerLayer = AdornerLayer.GetAdornerLayer(child);
+            var adorner = adornerLayer?.GetAdorners(child)?[0];
+            if (adorner != null) adornerLayer.Remove(adorner);
+        }
+
+        // TODO: PERFORMANCE IMPROVEMENT: Add ArrangeAdorner only once and then set its visibility...
     }
 }

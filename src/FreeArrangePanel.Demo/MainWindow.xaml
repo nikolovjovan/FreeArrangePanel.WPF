@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:controls="clr-namespace:FreeArrangePanel;assembly=FreeArrangePanel"
+        xmlns:controls="clr-namespace:FreeArrangePanel.Controls;assembly=FreeArrangePanel"
         mc:Ignorable="d"
         Title="FreeArrangePanel Demo" Height="300" Width="500">
     <controls:FreeArrangePanel>

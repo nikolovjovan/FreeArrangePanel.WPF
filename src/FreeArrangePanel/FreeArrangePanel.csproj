@@ -52,8 +52,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Compile Include="DragSelectionAdorner.cs" />
-    <Compile Include="FreeArrangePanel.cs">
+    <Compile Include="Adorners\ArrangeAdorner.cs" />
+    <Compile Include="Adorners\DragSelectionAdorner.cs" />
+    <Compile Include="Controls\FreeArrangePanel.cs">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
