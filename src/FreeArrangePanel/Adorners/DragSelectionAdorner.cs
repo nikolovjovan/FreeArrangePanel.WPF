@@ -13,6 +13,7 @@ namespace FreeArrangePanel.Adorners
             Color = color ?? Color.FromArgb(0x40, 0x00, 0x00, 0xFF);
             StartPoint = start ?? new Point();
             EndPoint = end ?? new Point();
+            Visibility = Visibility.Collapsed;
         }
 
         public double BorderWidth { get; set; }

@@ -5,7 +5,6 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-
 using FreeArrangePanel.Adorners;
 
 namespace FreeArrangePanel.Controls
@@ -26,7 +25,10 @@ namespace FreeArrangePanel.Controls
             mDragSelectionAdorner = new DragSelectionAdorner(this);
             mSelectedElements = new LinkedList<UIElement>();
             // Mouse hit testing does not work on null Background brush!!!
+            // Try to override default null to transparent...
             Background = Brushes.Transparent;
+            Loaded += OnPanelLoaded; // Add drag selection adorner on load
+            Unloaded += OnPanelUnloaded; // Remove drag selection adorner on unload
         }
 
         public double DragThreshold
@@ -50,12 +52,50 @@ namespace FreeArrangePanel.Controls
             }
         }
 
-        protected override void OnPreviewMouseDown(MouseButtonEventArgs e)
+        private void OnPanelLoaded(object sender, RoutedEventArgs e)
         {
-            base.OnPreviewMouseDown(e);
+            Loaded -= OnPanelLoaded;
+            var adornerLayer = AdornerLayer.GetAdornerLayer(this);
+            adornerLayer.Add(mDragSelectionAdorner);
+        }
+
+        private void OnPanelUnloaded(object sender, RoutedEventArgs e)
+        {
+            Unloaded -= OnPanelUnloaded;
+            var adornerLayer = AdornerLayer.GetAdornerLayer(this);
+            adornerLayer.Remove(mDragSelectionAdorner);
+        }
+
+        private static void OnElementLoaded(object sender, RoutedEventArgs e)
+        {
+            var element = (FrameworkElement)sender;
+            element.Loaded -= OnElementLoaded;
+            var adornerLayer = AdornerLayer.GetAdornerLayer(element);
+            adornerLayer.Add(new ArrangeAdorner(element));
+        }
+
+        protected override void OnVisualChildrenChanged(DependencyObject visualAdded, DependencyObject visualRemoved)
+        {
+            base.OnVisualChildrenChanged(visualAdded, visualRemoved);
+
+            if (visualRemoved != null)
+            {
+                // Remove all adorners from the adorner layer...
+                var adornerLayer = AdornerLayer.GetAdornerLayer((Visual) visualRemoved);
+                var adorners = adornerLayer.GetAdorners((UIElement) visualRemoved);
+                if (adorners != null)
+                    foreach (var adorner in adorners)
+                        adornerLayer.Remove(adorner);
+            }
+
+            if (visualAdded != null) ((FrameworkElement) visualAdded).Loaded += OnElementLoaded;
+        }
+
+        protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
+        {
+            base.OnPreviewMouseLeftButtonDown(e);
 
             if (!ReferenceEquals(e.OriginalSource, this)) return;
-            if (e.ChangedButton != MouseButton.Left) return;
 
             if (mDragSelecting) StopDragging();
 
@@ -69,12 +109,11 @@ namespace FreeArrangePanel.Controls
             e.Handled = true;
         }
 
-        protected override void OnPreviewMouseUp(MouseButtonEventArgs e)
+        protected override void OnPreviewMouseLeftButtonUp(MouseButtonEventArgs e)
         {
-            base.OnPreviewMouseUp(e);
+            base.OnPreviewMouseLeftButtonUp(e);
 
             if (!ReferenceEquals(e.OriginalSource, this)) return;
-            if (e.ChangedButton != MouseButton.Left) return;
 
             if (mDragSelecting)
             {
@@ -114,9 +153,9 @@ namespace FreeArrangePanel.Controls
         private void Drag(Point endPoint, bool starting = false)
         {
             mDragSelectionAdorner.EndPoint = endPoint;
+            if (starting) mDragSelectionAdorner.Visibility = Visibility.Visible;
             var adornerLayer = AdornerLayer.GetAdornerLayer(this);
-            if (starting) adornerLayer?.Add(mDragSelectionAdorner);
-            adornerLayer?.Update();
+            adornerLayer.Update();
             SelectElements();
         }
 
@@ -128,14 +167,16 @@ namespace FreeArrangePanel.Controls
         private void StopDragging()
         {
             mDragSelecting = false;
-            var adornerLayer = AdornerLayer.GetAdornerLayer(this);
-            adornerLayer?.Remove(mDragSelectionAdorner);
+            mDragSelectionAdorner.Visibility = Visibility.Collapsed;
         }
 
         private void SelectElements()
         {
             var dragRect = new Rect(mDragSelectionAdorner.StartPoint, mDragSelectionAdorner.EndPoint);
             //Console.WriteLine("Drag rect: " + dragRect);
+
+            // DEBUG INFO, NOT IDEAL METRIC BUT GOOD ENOUGH TO STOP SPAMMING OUTPUT
+            var initialCount = mSelectedElements.Count;
 
             foreach (UIElement child in Children)
             {
@@ -150,7 +191,9 @@ namespace FreeArrangePanel.Controls
                 else DeselectElement(child, true);
             }
 
-            //Console.WriteLine("Selected elements...");
+            if (mSelectedElements.Count == initialCount) return;
+
+            Console.WriteLine("Selected elements...");
             foreach (var selectedElement in mSelectedElements) Console.WriteLine(selectedElement.ToString());
         }
 
@@ -165,17 +208,18 @@ namespace FreeArrangePanel.Controls
             if (mSelectedElements.Contains(child)) return;
             mSelectedElements.AddLast(child);
             var adornerLayer = AdornerLayer.GetAdornerLayer(child);
-            adornerLayer?.Add(new ArrangeAdorner(child));
+            var adorners = adornerLayer.GetAdorners(child);
+            if (adorners == null) return;
+            foreach (var adorner in adorners) adorner.Visibility = Visibility.Visible;
         }
 
         private void DeselectElement(UIElement child, bool remove = false)
         {
             if (remove) mSelectedElements.Remove(child);
             var adornerLayer = AdornerLayer.GetAdornerLayer(child);
-            var adorner = adornerLayer?.GetAdorners(child)?[0];
-            if (adorner != null) adornerLayer.Remove(adorner);
+            var adorners = adornerLayer.GetAdorners(child);
+            if (adorners == null) return;
+            foreach (var adorner in adorners) adorner.Visibility = Visibility.Collapsed;
         }
-
-        // TODO: PERFORMANCE IMPROVEMENT: Add ArrangeAdorner only once and then set its visibility...
     }
 }

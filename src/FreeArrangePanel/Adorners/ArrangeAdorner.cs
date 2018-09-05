@@ -11,6 +11,7 @@ namespace FreeArrangePanel.Adorners
         {
             ThumbSize = thumbSize;
             Color = color ?? Color.FromRgb(0x00, 0x00, 0xFF);
+            Visibility = Visibility.Collapsed;
         }
 
         public double ThumbSize { get; set; }
@@ -21,7 +22,9 @@ namespace FreeArrangePanel.Adorners
             var dpiFactor = 1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
             var adaptedThumbSize = ThumbSize * dpiFactor;
 
-            var rect = new Rect(-adaptedThumbSize / 2, -adaptedThumbSize / 2, AdornedElement.RenderSize.Width + adaptedThumbSize, AdornedElement.RenderSize.Height + adaptedThumbSize);
+            var rect = new Rect(-adaptedThumbSize / 2, -adaptedThumbSize / 2,
+                AdornedElement.RenderSize.Width + adaptedThumbSize,
+                AdornedElement.RenderSize.Height + adaptedThumbSize);
             var drawingPen = new Pen(new SolidColorBrush(Color), adaptedThumbSize);
 
             var halfWidth = drawingPen.Thickness / 2;
