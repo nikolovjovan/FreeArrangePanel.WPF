@@ -7,7 +7,7 @@
         mc:Ignorable="d"
         Title="FreeArrangePanel Demo" Height="300" Width="500">
     <controls:FreeArrangePanel>
-        <Button Content ="Click Me" Canvas.Left="38" Canvas.Top="160" Height="44" Width="85" />
+        <Button Content ="Click Me" Canvas.Left="38" Canvas.Top="160" Height="44" Width="85" Click="ButtonClick" />
         <Label Content="I'm a label" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Background="Red" Canvas.Left="66" Canvas.Top="54" Height="57" Width="80" />
         <Image Source="Resources/HypnoToad.png" Width="200" Canvas.Left="269" Canvas.Top="23" />
         <Ellipse Fill="#3060FF" Height="75" Stroke="Black" Width="75" Canvas.Left="175" Canvas.Top="145"/>

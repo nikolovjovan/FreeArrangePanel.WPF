@@ -25,8 +25,9 @@ namespace FreeArrangePanel.Controls
             mDragSelectionAdorner = new DragSelectionAdorner(this);
             mSelectedElements = new LinkedList<UIElement>();
             // Mouse hit testing does not work on null Background brush!!!
-            // Try to override default null to transparent...
+            // TODO: Try to override default null to transparent...
             Background = Brushes.Transparent;
+            Focusable = true; // Allow the panel to get keyboard focus
             Loaded += OnPanelLoaded; // Add drag selection adorner on load
             Unloaded += OnPanelUnloaded; // Remove drag selection adorner on unload
         }
@@ -68,7 +69,7 @@ namespace FreeArrangePanel.Controls
 
         private static void OnElementLoaded(object sender, RoutedEventArgs e)
         {
-            var element = (FrameworkElement)sender;
+            var element = (FrameworkElement) sender;
             element.Loaded -= OnElementLoaded;
             var adornerLayer = AdornerLayer.GetAdornerLayer(element);
             adornerLayer.Add(new ArrangeAdorner(element));
@@ -95,16 +96,32 @@ namespace FreeArrangePanel.Controls
         {
             base.OnPreviewMouseLeftButtonDown(e);
 
-            if (!ReferenceEquals(e.OriginalSource, this)) return;
+            if (!ReferenceEquals(e.Source, this))
+            {
+                var element = e.Source as UIElement;
+                var ctrlDown = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+                // TODO: Don't deselect all if the element is selected to allow moving
+                //       (or use Thumb in ArrangeAdorner for moving)
+                // TODO: Deselect all on PreviewMouseLeftButtonUp (like in Windows Explorer)
+                if (!ctrlDown) DeselectAll();
+                if (ctrlDown && mSelectedElements.Contains(element)) DeselectElement(element, true);
+                else SelectElement(element);
+                // TODO: Add a property to specify whether to forward mouse events or not?!?
+                e.Handled = true;
+                return;
+            }
+
+            // TODO: Add CTRL drag and SHIFT drag like in Windows Explorer...
 
             if (mDragSelecting) StopDragging();
 
-            DeselectElements();
+            DeselectAll();
 
             mMouseDown = true;
             mDragSelectionAdorner.StartPoint = mDragSelectionAdorner.EndPoint = e.GetPosition(this);
 
             CaptureMouse();
+            Focus(); // Attain keyboard focus
 
             e.Handled = true;
         }
@@ -118,7 +135,7 @@ namespace FreeArrangePanel.Controls
             if (mDragSelecting)
             {
                 StopDragging();
-                SelectElements();
+                DragSelectElements();
             }
 
             if (!mMouseDown) return;
@@ -141,12 +158,22 @@ namespace FreeArrangePanel.Controls
 
                 if (dragDistance > mDragThreshold)
                 {
-                    DeselectElements();
+                    DeselectAll();
                     mDragSelecting = true;
                     StartDragging(e.GetPosition(this));
                 }
             }
 
+            e.Handled = true;
+        }
+
+        protected override void OnKeyDown(KeyEventArgs e)
+        {
+            base.OnKeyDown(e);
+
+            if (e.Key != Key.A) return;
+            if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
+            SelectAll();
             e.Handled = true;
         }
 
@@ -156,7 +183,7 @@ namespace FreeArrangePanel.Controls
             if (starting) mDragSelectionAdorner.Visibility = Visibility.Visible;
             var adornerLayer = AdornerLayer.GetAdornerLayer(this);
             adornerLayer.Update();
-            SelectElements();
+            DragSelectElements();
         }
 
         private void StartDragging(Point endPoint)
@@ -170,34 +197,27 @@ namespace FreeArrangePanel.Controls
             mDragSelectionAdorner.Visibility = Visibility.Collapsed;
         }
 
-        private void SelectElements()
+        private void DragSelectElements()
         {
             var dragRect = new Rect(mDragSelectionAdorner.StartPoint, mDragSelectionAdorner.EndPoint);
-            //Console.WriteLine("Drag rect: " + dragRect);
-
-            // DEBUG INFO, NOT IDEAL METRIC BUT GOOD ENOUGH TO STOP SPAMMING OUTPUT
-            var initialCount = mSelectedElements.Count;
-
             foreach (UIElement child in Children)
             {
                 var childRect = new Rect(new Point(GetLeft(child), GetTop(child)), child.RenderSize);
                 var intersection = Rect.Intersect(dragRect, childRect);
-                //Console.WriteLine("Child: " + child + " Rect: " + childRect);
                 var percentage = intersection.IsEmpty
                     ? 0.0
                     : intersection.Width * intersection.Height / (childRect.Width * childRect.Height);
-                //Console.WriteLine("Intersection: " + intersection + " Percentage: " + percentage);
                 if (percentage > mSelectionThreshold) SelectElement(child);
                 else DeselectElement(child, true);
             }
-
-            if (mSelectedElements.Count == initialCount) return;
-
-            Console.WriteLine("Selected elements...");
-            foreach (var selectedElement in mSelectedElements) Console.WriteLine(selectedElement.ToString());
         }
 
-        private void DeselectElements()
+        private void SelectAll()
+        {
+            foreach (UIElement child in Children) SelectElement(child);
+        }
+
+        private void DeselectAll()
         {
             foreach (UIElement child in Children) DeselectElement(child);
             mSelectedElements.Clear();
