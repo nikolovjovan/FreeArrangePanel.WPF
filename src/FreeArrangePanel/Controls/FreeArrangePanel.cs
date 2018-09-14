@@ -66,15 +66,7 @@ namespace FreeArrangePanel.Controls
         {
             base.OnVisualChildrenChanged(visualAdded, visualRemoved);
 
-            if (visualRemoved != null)
-            {
-                var adornerLayer = AdornerLayer.GetAdornerLayer((Visual) visualRemoved);
-                var adorners = adornerLayer.GetAdorners((UIElement) visualRemoved);
-                if (adorners != null)
-                    foreach (var adorner in adorners)
-                        adornerLayer.Remove(adorner);
-            }
-
+            if (visualRemoved != null) SetArrangeAdorner((UIElement) visualRemoved, null);
             if (visualAdded != null) ((FrameworkElement) visualAdded).Loaded += OnElementLoaded;
         }
 
@@ -82,26 +74,42 @@ namespace FreeArrangePanel.Controls
         {
             base.OnPreviewMouseLeftButtonDown(e);
 
-            mCtrlSelecting = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+            mMouseLeftDown = true;
+            mControlDown = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
 
             if (!ReferenceEquals(e.Source, this))
             {
-                var element = e.Source as UIElement;
-                if (mCtrlSelecting) SetSelected(element, !GetSelected(element));
+                var element = (UIElement) e.Source;
+
+                element.CaptureMouse();
+                mCursorStart = e.GetPosition(this);
+
+                if (!mControlDown && !GetSelected(element))
+                {
+                    if (SelectedElements.Count > 0)
+                    {
+                        SelectedElements.Clear();
+                        foreach (UIElement child in Children)
+                            if (!ReferenceEquals(child, element))
+                                SetSelected(child, false, false);
+                    }
+                    SetSelected(element, true);
+                }
+
                 if (!ForwardMouseEvents) e.Handled = true;
                 return;
             }
 
             mDragSelectionAdorner.StartPoint = mDragSelectionAdorner.EndPoint = e.GetPosition(this);
 
-            if (!mCtrlSelecting)
+            if (!mControlDown)
             {
                 SelectedElements.Clear();
-                foreach (UIElement child in Children) SetSelected(child, false, false);
+                foreach (UIElement child in Children)
+                    SetSelected(child, false, false);
             }
 
-            MouseLeftDown = true;
-
+            CaptureMouse(); // Capture mouse movement
             Focus(); // Attain keyboard focus
 
             e.Handled = true;
@@ -111,26 +119,47 @@ namespace FreeArrangePanel.Controls
         {
             base.OnPreviewMouseLeftButtonUp(e);
 
+            mMouseLeftDown = false;
+
             if (!ReferenceEquals(e.Source, this))
             {
-                if (!mCtrlSelecting)
+                var element = (UIElement) e.Source;
+
+                if (!mMovingElements)
                 {
-                    SelectedElements.Clear();
-                    var element = e.Source as UIElement;
-                    foreach (UIElement child in Children) SetSelected(child, ReferenceEquals(child, element));
+                    if (mControlDown)
+                    {
+                        SetSelected(element, !GetSelected(element));
+                    }
+                    else if (!(SelectedElements.Count == 1 && GetSelected(element)))
+                    {
+                        SelectedElements.Clear();
+                        foreach (UIElement child in Children)
+                            if (!ReferenceEquals(child, element))
+                                SetSelected(child, false, false);
+                        SetSelected(element, true);
+                    }
                 }
 
+                mMovingElements = false;
+
+                element.ReleaseMouseCapture();
+
                 if (!ForwardMouseEvents) e.Handled = true;
+
                 return;
             }
 
             if (DragSelecting)
             {
                 DragSelecting = false;
-                foreach (UIElement child in Children) SetSelected(child, GetDragSelected(child));
+                foreach (UIElement child in Children)
+                    SetSelected(child, GetRenderSelection(child)); // Apply drag selection
             }
 
-            MouseLeftDown = false;
+            mMovingElements = false;
+
+            ReleaseMouseCapture(); // Release mouse movement capture
 
             e.Handled = true;
         }
@@ -141,37 +170,57 @@ namespace FreeArrangePanel.Controls
 
             var cursorPosition = e.GetPosition(this);
 
-            if (DragSelecting)
+            if (ReferenceEquals(e.Source, this))
             {
-                // Update adorner
-                mDragSelectionAdorner.EndPoint = cursorPosition;
-                var adornerLayer = AdornerLayer.GetAdornerLayer(this);
-                adornerLayer.Update();
-
-                // Select elements
-                mCtrlSelecting = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
-                var dragRect = new Rect(mDragSelectionAdorner.StartPoint, mDragSelectionAdorner.EndPoint);
-                foreach (UIElement child in Children)
+                if (DragSelecting)
                 {
-                    var childRect = new Rect(new Point(GetLeft(child), GetTop(child)), child.RenderSize);
-                    var intersection = Rect.Intersect(dragRect, childRect);
-                    var percentage = intersection.IsEmpty
-                        ? 0.0
-                        : intersection.Width * intersection.Height / (childRect.Width * childRect.Height);
-                    var value = mCtrlSelecting && GetSelected(child);
-                    if (percentage >= SelectionThreshold) SetDragSelected(child, !value);
-                    else SetDragSelected(child, value);
+                    // Update drag selection
+                    mDragSelectionAdorner.EndPoint = cursorPosition;
+                    AdornerLayer.GetAdornerLayer(this).Update();
+
+                    // Render element selection
+                    mControlDown = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+                    var dragRect = new Rect(mDragSelectionAdorner.StartPoint, mDragSelectionAdorner.EndPoint);
+                    foreach (UIElement child in Children)
+                    {
+                        var childRect = new Rect(new Point(GetLeft(child), GetTop(child)), child.RenderSize);
+                        var intersection = Rect.Intersect(dragRect, childRect);
+                        var percentage = intersection.IsEmpty
+                            ? 0.0
+                            : intersection.Width * intersection.Height / (childRect.Width * childRect.Height);
+                        var value = mControlDown && GetSelected(child);
+                        if (percentage >= SelectionThreshold) SetRenderSelection(child, !value);
+                        else SetRenderSelection(child, value);
+                    }
+                }
+                else if (mMouseLeftDown)
+                {
+                    var dragDistance = Math.Abs((cursorPosition - mDragSelectionAdorner.StartPoint).Length);
+                    if (dragDistance > DragThreshold)
+                    {
+                        DragSelecting = true;
+                        mDragSelectionAdorner.EndPoint = cursorPosition;
+                        AdornerLayer.GetAdornerLayer(this).Update();
+                    }
                 }
             }
-            else if (MouseLeftDown)
+            else
             {
-                var dragDistance = Math.Abs((cursorPosition - mDragSelectionAdorner.StartPoint).Length);
-                if (dragDistance > DragThreshold)
+                if (mMovingElements)
                 {
-                    DragSelecting = true;
-                    mDragSelectionAdorner.EndPoint = cursorPosition;
-                    var adornerLayer = AdornerLayer.GetAdornerLayer(this);
-                    adornerLayer.Update();
+                    var dragDelta = cursorPosition - mCursorStart;
+                    mCursorStart = cursorPosition;
+
+                    foreach (var element in SelectedElements)
+                    {
+                        SetLeft(element, GetLeft(element) + dragDelta.X);
+                        SetTop(element, GetTop(element) + dragDelta.Y);
+                    }
+                }
+                else if (mMouseLeftDown && GetSelected((UIElement) e.Source))
+                {
+                    var dragDelta = Math.Abs((cursorPosition - mDragSelectionAdorner.StartPoint).Length);
+                    if (dragDelta > DragThreshold) mMovingElements = true;
                 }
             }
 
@@ -182,9 +231,51 @@ namespace FreeArrangePanel.Controls
         {
             base.OnKeyDown(e);
 
-            if (e.Key != Key.A) return;
-            if ((Keyboard.Modifiers & ModifierKeys.Control) != ModifierKeys.Control) return;
-            foreach (UIElement child in Children) SetSelected(child, true);
+            var movement = new Point(0, 0);
+
+            switch (e.Key)
+            {
+                case Key.A:
+                    if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
+                        foreach (UIElement child in Children)
+                            SetSelected(child, true);
+                    break;
+                case Key.NumPad8:
+                    movement = new Point(0, -1);
+                    break;
+                case Key.NumPad2:
+                    movement = new Point(0, 1);
+                    break;
+                case Key.NumPad4:
+                    movement = new Point(-1, 0);
+                    break;
+                case Key.NumPad6:
+                    movement = new Point(1, 0);
+                    break;
+                case Key.NumPad7:
+                    movement = new Point(-1, -1);
+                    break;
+                case Key.NumPad9:
+                    movement = new Point(1, -1);
+                    break;
+                case Key.NumPad1:
+                    movement = new Point(-1, 1);
+                    break;
+                case Key.NumPad3:
+                    movement = new Point(1, 1);
+                    break;
+                case Key.Up: goto case Key.NumPad8;
+                case Key.Down: goto case Key.NumPad2;
+                case Key.Left: goto case Key.NumPad4;
+                case Key.Right: goto case Key.NumPad6;
+            }
+
+            if (movement != new Point(0, 0))
+                foreach (var element in SelectedElements)
+                {
+                    SetLeft(element, GetLeft(element) + movement.X);
+                    SetTop(element, GetTop(element) + movement.Y);
+                }
 
             e.Handled = true;
         }
@@ -196,28 +287,23 @@ namespace FreeArrangePanel.Controls
         private static readonly DependencyProperty SelectedProperty = DependencyProperty.RegisterAttached(
             "Selected", typeof(bool), typeof(FreeArrangePanel), new PropertyMetadata(false));
 
-        private static readonly DependencyProperty DragSelectedProperty = DependencyProperty.RegisterAttached(
-            "DragSelected", typeof(bool), typeof(FreeArrangePanel), new PropertyMetadata(false));
+        private static readonly DependencyProperty RenderSelectionProperty = DependencyProperty.RegisterAttached(
+            "RenderSelection", typeof(bool), typeof(FreeArrangePanel), new PropertyMetadata(false));
+
+        private static readonly DependencyProperty ArrangeAdornerProperty = DependencyProperty.RegisterAttached(
+            "ArrangeAdorner", typeof(ArrangeAdorner), typeof(FreeArrangePanel), new PropertyMetadata(null));
 
         private readonly DragSelectionAdorner mDragSelectionAdorner;
 
         private bool mMouseLeftDown;
-        private bool mCtrlSelecting;
+        private bool mControlDown;
         private bool mDragSelecting;
+        private bool mMovingElements;
+
+        private Point mCursorStart;
 
         private double mDragThreshold = 5.0;
         private double mSelectionThreshold = 0.5;
-
-        private bool MouseLeftDown
-        {
-            get => mMouseLeftDown;
-            set
-            {
-                mMouseLeftDown = value;
-                if (value) CaptureMouse();
-                else ReleaseMouseCapture();
-            }
-        }
 
         private bool DragSelecting
         {
@@ -229,13 +315,28 @@ namespace FreeArrangePanel.Controls
             }
         }
 
+        private static void SetArrangeAdorner(UIElement element, ArrangeAdorner value)
+        {
+            if (element == null) throw new ArgumentNullException(nameof(element));
+            var oldValue = (ArrangeAdorner) element.GetValue(ArrangeAdornerProperty);
+            if (ReferenceEquals(value, oldValue)) return;
+            element.SetValue(ArrangeAdornerProperty, value);
+            if (value != null) AdornerLayer.GetAdornerLayer(element).Add(value);
+            else AdornerLayer.GetAdornerLayer(element).Remove(oldValue);
+        }
+
+        private static ArrangeAdorner GetArrangeAdorner(UIElement element)
+        {
+            if (element == null) throw new ArgumentNullException(nameof(element));
+            return (ArrangeAdorner) element.GetValue(ArrangeAdornerProperty);
+        }
+
         private void SetSelected(UIElement element, bool value, bool modifyList = true)
         {
             if (element == null) throw new ArgumentNullException(nameof(element));
-            var oldValue = (bool) element.GetValue(SelectedProperty);
-            if (value == oldValue) return;
+            if (value == (bool) element.GetValue(SelectedProperty)) return;
             element.SetValue(SelectedProperty, value);
-            SetDragSelected(element, value);
+            SetRenderSelection(element, value);
             if (!modifyList) return;
             if (value) SelectedElements.Add(element);
             else SelectedElements.Remove(element);
@@ -247,44 +348,40 @@ namespace FreeArrangePanel.Controls
             return (bool) element.GetValue(SelectedProperty);
         }
 
-        private static void SetDragSelected(UIElement element, bool value)
+        private static void SetRenderSelection(UIElement element, bool value)
         {
             if (element == null) throw new ArgumentNullException(nameof(element));
-            element.SetValue(DragSelectedProperty, value);
-            var adornerLayer = AdornerLayer.GetAdornerLayer(element);
-            var adorners = adornerLayer.GetAdorners(element);
-            if (adorners == null) return;
-            foreach (var adorner in adorners) adorner.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+            element.SetValue(RenderSelectionProperty, value);
+            GetArrangeAdorner(element).Visibility = value ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        private static bool GetDragSelected(UIElement element)
+        private static bool GetRenderSelection(UIElement element)
         {
             if (element == null) throw new ArgumentNullException(nameof(element));
-            return (bool) element.GetValue(DragSelectedProperty);
+            return (bool) element.GetValue(RenderSelectionProperty);
         }
 
-        private void OnPanelLoaded(object sender, RoutedEventArgs e)
+        private static void OnPanelLoaded(object sender, RoutedEventArgs e)
         {
-            Loaded -= OnPanelLoaded;
-            var adornerLayer = AdornerLayer.GetAdornerLayer(this);
-            adornerLayer.Add(mDragSelectionAdorner);
+            var panel = (FreeArrangePanel) sender;
+            panel.Loaded -= OnPanelLoaded;
+            AdornerLayer.GetAdornerLayer(panel).Add(panel.mDragSelectionAdorner);
         }
 
-        private void OnPanelUnloaded(object sender, RoutedEventArgs e)
+        private static void OnPanelUnloaded(object sender, RoutedEventArgs e)
         {
-            Unloaded -= OnPanelUnloaded;
-            var adornerLayer = AdornerLayer.GetAdornerLayer(this);
-            adornerLayer.Remove(mDragSelectionAdorner);
+            var panel = (FreeArrangePanel) sender;
+            panel.Unloaded -= OnPanelUnloaded;
+            AdornerLayer.GetAdornerLayer(panel).Remove(panel.mDragSelectionAdorner);
         }
 
         private static void OnElementLoaded(object sender, RoutedEventArgs e)
         {
             var element = (FrameworkElement) sender;
             element.Loaded -= OnElementLoaded;
-            var adornerLayer = AdornerLayer.GetAdornerLayer(element);
-            adornerLayer.Add(new ArrangeAdorner(element));
+            SetArrangeAdorner(element, new ArrangeAdorner(element));
         }
-        
+
         #endregion
     }
 }
