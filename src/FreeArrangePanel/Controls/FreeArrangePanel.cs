@@ -58,6 +58,21 @@ namespace FreeArrangePanel.Controls
 
         public IList<UIElement> SelectedElements { get; }
 
+        public void SelectAll()
+        {
+            if (SelectedElements.Count == Children.Count) return;
+            foreach (UIElement child in Children)
+                SetSelected(child, true);
+        }
+
+        public void DeselectAll()
+        {
+            if (SelectedElements.Count == 0) return;
+            foreach (var selectedElement in SelectedElements)
+                SetSelected(selectedElement, false, false);
+            SelectedElements.Clear();
+        }
+
         #endregion
 
         #region Protected
@@ -81,20 +96,15 @@ namespace FreeArrangePanel.Controls
             {
                 var element = (UIElement) e.Source;
 
-                element.CaptureMouse();
                 mCursorStart = e.GetPosition(this);
 
                 if (!mControlDown && !GetSelected(element))
                 {
-                    if (SelectedElements.Count > 0)
-                    {
-                        SelectedElements.Clear();
-                        foreach (UIElement child in Children)
-                            if (!ReferenceEquals(child, element))
-                                SetSelected(child, false, false);
-                    }
+                    DeselectAll();
                     SetSelected(element, true);
                 }
+
+                element.CaptureMouse();
 
                 if (!ForwardMouseEvents) e.Handled = true;
                 return;
@@ -102,12 +112,7 @@ namespace FreeArrangePanel.Controls
 
             mDragSelectionAdorner.StartPoint = mDragSelectionAdorner.EndPoint = e.GetPosition(this);
 
-            if (!mControlDown)
-            {
-                SelectedElements.Clear();
-                foreach (UIElement child in Children)
-                    SetSelected(child, false, false);
-            }
+            if (!mControlDown) DeselectAll();
 
             CaptureMouse(); // Capture mouse movement
             Focus(); // Attain keyboard focus
@@ -133,10 +138,7 @@ namespace FreeArrangePanel.Controls
                     }
                     else if (!(SelectedElements.Count == 1 && GetSelected(element)))
                     {
-                        SelectedElements.Clear();
-                        foreach (UIElement child in Children)
-                            if (!ReferenceEquals(child, element))
-                                SetSelected(child, false, false);
+                        DeselectAll();
                         SetSelected(element, true);
                     }
                 }
@@ -195,7 +197,7 @@ namespace FreeArrangePanel.Controls
                 }
                 else if (mMouseLeftDown)
                 {
-                    var dragDistance = Math.Abs((cursorPosition - mDragSelectionAdorner.StartPoint).Length);
+                    var dragDistance = (cursorPosition - mDragSelectionAdorner.StartPoint).Length;
                     if (dragDistance > DragThreshold)
                     {
                         DragSelecting = true;
@@ -219,7 +221,7 @@ namespace FreeArrangePanel.Controls
                 }
                 else if (mMouseLeftDown && GetSelected((UIElement) e.Source))
                 {
-                    var dragDelta = Math.Abs((cursorPosition - mDragSelectionAdorner.StartPoint).Length);
+                    var dragDelta = (cursorPosition - mCursorStart).Length;
                     if (dragDelta > DragThreshold) mMovingElements = true;
                 }
             }
@@ -236,9 +238,7 @@ namespace FreeArrangePanel.Controls
             switch (e.Key)
             {
                 case Key.A:
-                    if ((Keyboard.Modifiers & ModifierKeys.Control) != 0)
-                        foreach (UIElement child in Children)
-                            SetSelected(child, true);
+                    if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) SelectAll();
                     break;
                 case Key.NumPad8:
                     movement = new Point(0, -1);
