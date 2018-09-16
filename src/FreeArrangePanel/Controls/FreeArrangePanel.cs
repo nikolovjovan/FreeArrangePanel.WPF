@@ -13,6 +13,8 @@ namespace FreeArrangePanel.Controls
     {
         #region Public
 
+        #region Constructors
+
         public FreeArrangePanel()
         {
             mDragSelectionAdorner = new DragSelectionAdorner(this);
@@ -22,6 +24,20 @@ namespace FreeArrangePanel.Controls
             Loaded += OnPanelLoaded; // Add drag selection adorner on load
             Unloaded += OnPanelUnloaded; // Remove drag selection adorner on unload
         }
+
+        static FreeArrangePanel()
+        {
+            SelectedProperty = DependencyProperty.RegisterAttached("Selected", typeof(bool),
+                typeof(FreeArrangePanel), new PropertyMetadata(false));
+            RenderSelectionProperty = DependencyProperty.RegisterAttached("RenderSelection", typeof(bool),
+                typeof(FreeArrangePanel), new PropertyMetadata(false));
+            ArrangeAdornerProperty = DependencyProperty.RegisterAttached("ArrangeAdorner", typeof(ArrangeAdorner),
+                typeof(FreeArrangePanel), new PropertyMetadata(null));
+        }
+
+        #endregion
+
+        #region Properties
 
         public new Brush Background
         {
@@ -38,7 +54,7 @@ namespace FreeArrangePanel.Controls
             get => mDragThreshold;
             set
             {
-                if (value < 1.0) value = 1.0;
+                if (value < 0.5) value = 0.5;
                 mDragThreshold = value;
             }
         }
@@ -58,6 +74,10 @@ namespace FreeArrangePanel.Controls
 
         public IList<UIElement> SelectedElements { get; }
 
+        #endregion
+
+        #region Methods
+
         public void SelectAll()
         {
             if (SelectedElements.Count == Children.Count) return;
@@ -75,15 +95,55 @@ namespace FreeArrangePanel.Controls
 
         #endregion
 
+        #endregion
+
         #region Protected
+
+        #region Load Handlers
 
         protected override void OnVisualChildrenChanged(DependencyObject visualAdded, DependencyObject visualRemoved)
         {
             base.OnVisualChildrenChanged(visualAdded, visualRemoved);
 
-            if (visualRemoved != null) SetArrangeAdorner((UIElement) visualRemoved, null);
-            if (visualAdded != null) ((FrameworkElement) visualAdded).Loaded += OnElementLoaded;
+            if (visualRemoved != null)
+            {
+                var element = (UIElement) visualRemoved;
+                SetArrangeAdorner(element, null);
+                UpdateZOrder(element, true);
+            }
+
+            if (visualAdded != null)
+            {
+                var element = (FrameworkElement) visualAdded;
+                element.Loaded += OnElementLoaded; // Add ArrangeAdorner once element AdornerLayer is loaded
+                SetZIndex(element, Children.Count - 1); // Initialize ZIndex of the element
+            }
         }
+
+        protected static void OnPanelLoaded(object sender, RoutedEventArgs e)
+        {
+            var panel = (FreeArrangePanel) sender;
+            panel.Loaded -= OnPanelLoaded;
+            AdornerLayer.GetAdornerLayer(panel).Add(panel.mDragSelectionAdorner);
+        }
+
+        protected static void OnPanelUnloaded(object sender, RoutedEventArgs e)
+        {
+            var panel = (FreeArrangePanel) sender;
+            panel.Unloaded -= OnPanelUnloaded;
+            AdornerLayer.GetAdornerLayer(panel).Remove(panel.mDragSelectionAdorner);
+        }
+
+        protected static void OnElementLoaded(object sender, RoutedEventArgs e)
+        {
+            var element = (FrameworkElement) sender;
+            element.Loaded -= OnElementLoaded;
+            SetArrangeAdorner(element, new ArrangeAdorner(element));
+        }
+
+        #endregion
+
+        #region Selection and Drag Logic
 
         protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
         {
@@ -114,8 +174,8 @@ namespace FreeArrangePanel.Controls
 
             if (!mControlDown) DeselectAll();
 
-            CaptureMouse(); // Capture mouse movement
-            Focus(); // Attain keyboard focus
+            CaptureMouse();
+            Focus();
 
             e.Handled = true;
         }
@@ -152,16 +212,16 @@ namespace FreeArrangePanel.Controls
                 return;
             }
 
-            if (DragSelecting)
+            if (mDragSelecting)
             {
-                DragSelecting = false;
+                SetDragSelecting(false);
                 foreach (UIElement child in Children)
-                    SetSelected(child, GetRenderSelection(child)); // Apply drag selection
+                    SetSelected(child, GetRenderSelection(child));
             }
 
             mMovingElements = false;
 
-            ReleaseMouseCapture(); // Release mouse movement capture
+            ReleaseMouseCapture();
 
             e.Handled = true;
         }
@@ -174,13 +234,11 @@ namespace FreeArrangePanel.Controls
 
             if (ReferenceEquals(e.Source, this))
             {
-                if (DragSelecting)
+                if (mDragSelecting)
                 {
-                    // Update drag selection
                     mDragSelectionAdorner.EndPoint = cursorPosition;
                     AdornerLayer.GetAdornerLayer(this).Update();
 
-                    // Render element selection
                     mControlDown = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
                     var dragRect = new Rect(mDragSelectionAdorner.StartPoint, mDragSelectionAdorner.EndPoint);
                     foreach (UIElement child in Children)
@@ -200,7 +258,7 @@ namespace FreeArrangePanel.Controls
                     var dragDistance = (cursorPosition - mDragSelectionAdorner.StartPoint).Length;
                     if (dragDistance > DragThreshold)
                     {
-                        DragSelecting = true;
+                        SetDragSelecting(true);
                         mDragSelectionAdorner.EndPoint = cursorPosition;
                         AdornerLayer.GetAdornerLayer(this).Update();
                     }
@@ -228,6 +286,10 @@ namespace FreeArrangePanel.Controls
 
             e.Handled = true;
         }
+
+        #endregion
+
+        #region Keyboard Shortcuts
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
@@ -282,38 +344,31 @@ namespace FreeArrangePanel.Controls
 
         #endregion
 
+        #endregion
+
         #region Private
 
-        private static readonly DependencyProperty SelectedProperty = DependencyProperty.RegisterAttached(
-            "Selected", typeof(bool), typeof(FreeArrangePanel), new PropertyMetadata(false));
+        #region Fields 
 
-        private static readonly DependencyProperty RenderSelectionProperty = DependencyProperty.RegisterAttached(
-            "RenderSelection", typeof(bool), typeof(FreeArrangePanel), new PropertyMetadata(false));
-
-        private static readonly DependencyProperty ArrangeAdornerProperty = DependencyProperty.RegisterAttached(
-            "ArrangeAdorner", typeof(ArrangeAdorner), typeof(FreeArrangePanel), new PropertyMetadata(null));
+        private static readonly DependencyProperty SelectedProperty;
+        private static readonly DependencyProperty RenderSelectionProperty;
+        private static readonly DependencyProperty ArrangeAdornerProperty;
 
         private readonly DragSelectionAdorner mDragSelectionAdorner;
+
+        private double mDragThreshold = 5.0;
+        private double mSelectionThreshold = 0.5;
+
+        private Point mCursorStart;
 
         private bool mMouseLeftDown;
         private bool mControlDown;
         private bool mDragSelecting;
         private bool mMovingElements;
 
-        private Point mCursorStart;
+        #endregion
 
-        private double mDragThreshold = 5.0;
-        private double mSelectionThreshold = 0.5;
-
-        private bool DragSelecting
-        {
-            get => mDragSelecting;
-            set
-            {
-                mDragSelecting = value;
-                mDragSelectionAdorner.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
-            }
-        }
+        #region Dependency Properties Methods
 
         private static void SetArrangeAdorner(UIElement element, ArrangeAdorner value)
         {
@@ -337,6 +392,7 @@ namespace FreeArrangePanel.Controls
             if (value == (bool) element.GetValue(SelectedProperty)) return;
             element.SetValue(SelectedProperty, value);
             SetRenderSelection(element, value);
+            UpdateZOrder(element);
             if (!modifyList) return;
             if (value) SelectedElements.Add(element);
             else SelectedElements.Remove(element);
@@ -361,26 +417,55 @@ namespace FreeArrangePanel.Controls
             return (bool) element.GetValue(RenderSelectionProperty);
         }
 
-        private static void OnPanelLoaded(object sender, RoutedEventArgs e)
+        #endregion
+
+        #region Helper Methods
+
+        private void SetDragSelecting(bool value)
         {
-            var panel = (FreeArrangePanel) sender;
-            panel.Loaded -= OnPanelLoaded;
-            AdornerLayer.GetAdornerLayer(panel).Add(panel.mDragSelectionAdorner);
+            mDragSelecting = value;
+            mDragSelectionAdorner.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
         }
 
-        private static void OnPanelUnloaded(object sender, RoutedEventArgs e)
+        private void UpdateZOrder(UIElement element, bool remove = false)
         {
-            var panel = (FreeArrangePanel) sender;
-            panel.Unloaded -= OnPanelUnloaded;
-            AdornerLayer.GetAdornerLayer(panel).Remove(panel.mDragSelectionAdorner);
+            var elementZIndex = GetZIndex(element);
+
+            if (remove || GetSelected(element))
+            {
+                // Decrement the ZIndices of elements with higher ZIndex than this.
+                foreach (UIElement child in Children)
+                {
+                    var childZIndex = GetZIndex(child);
+                    if (childZIndex > elementZIndex) SetZIndex(child, childZIndex - 1);
+                }
+
+                // If the element is being removed, we are done.
+                if (remove) return;
+                // Else the element is being selected, so we need to push it to the top.
+                SetZIndex(element, Children.Count - 1);
+                return;
+            }
+
+            // Since the element is being deselected, we need to push it down below all
+            // selected elements but still above all deselected elements.
+            // So, we increment the ZIndices of elements with lower ZIndex than this,
+            // and then set the ZIndex of this element to the lowest ZIndex of the
+            // selected elements.
+
+            var newZIndex = int.MaxValue;
+
+            foreach (var selectedElement in SelectedElements)
+            {
+                var childZIndex = GetZIndex(selectedElement);
+                if (childZIndex < elementZIndex) SetZIndex(selectedElement, childZIndex + 1);
+                if (childZIndex < newZIndex) newZIndex = childZIndex;
+            }
+
+            SetZIndex(element, newZIndex);
         }
 
-        private static void OnElementLoaded(object sender, RoutedEventArgs e)
-        {
-            var element = (FrameworkElement) sender;
-            element.Loaded -= OnElementLoaded;
-            SetArrangeAdorner(element, new ArrangeAdorner(element));
-        }
+        #endregion
 
         #endregion
     }
