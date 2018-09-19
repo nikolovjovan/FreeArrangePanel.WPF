@@ -6,6 +6,7 @@ using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using FreeArrangePanel.Adorners;
+using FreeArrangePanel.Helpers;
 
 namespace FreeArrangePanel.Controls
 {
@@ -156,7 +157,7 @@ namespace FreeArrangePanel.Controls
             {
                 var element = (UIElement) e.Source;
 
-                mCursorStart = e.GetPosition(this);
+                mMouseDownPosition = e.GetPosition(element);
 
                 if (!mControlDown && !GetSelected(element))
                 {
@@ -204,6 +205,7 @@ namespace FreeArrangePanel.Controls
                 }
 
                 mMovingElements = false;
+                foreach (var selectedElement in SelectedElements) SetRenderSelection(selectedElement, true);
 
                 element.ReleaseMouseCapture();
 
@@ -230,16 +232,17 @@ namespace FreeArrangePanel.Controls
         {
             base.OnPreviewMouseMove(e);
 
-            var cursorPosition = e.GetPosition(this);
+            var source = (UIElement) e.Source;
+            var cursorPosition = e.GetPosition(source);
 
-            if (ReferenceEquals(e.Source, this))
+            if (ReferenceEquals(source, this))
             {
                 if (mDragSelecting)
                 {
                     mDragSelectionAdorner.EndPoint = cursorPosition;
                     AdornerLayer.GetAdornerLayer(this).Update();
 
-                    mControlDown = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+                    mControlDown = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
                     var dragRect = new Rect(mDragSelectionAdorner.StartPoint, mDragSelectionAdorner.EndPoint);
                     foreach (UIElement child in Children)
                     {
@@ -255,8 +258,8 @@ namespace FreeArrangePanel.Controls
                 }
                 else if (mMouseLeftDown)
                 {
-                    var dragDistance = (cursorPosition - mDragSelectionAdorner.StartPoint).Length;
-                    if (dragDistance > DragThreshold)
+                    var dragDelta = (cursorPosition - mDragSelectionAdorner.StartPoint).Length;
+                    if (dragDelta > DragThreshold)
                     {
                         SetDragSelecting(true);
                         mDragSelectionAdorner.EndPoint = cursorPosition;
@@ -268,19 +271,22 @@ namespace FreeArrangePanel.Controls
             {
                 if (mMovingElements)
                 {
-                    var dragDelta = cursorPosition - mCursorStart;
-                    mCursorStart = cursorPosition;
-
-                    foreach (var element in SelectedElements)
-                    {
-                        SetLeft(element, GetLeft(element) + dragDelta.X);
-                        SetTop(element, GetTop(element) + dragDelta.Y);
-                    }
+                    var dragDelta = GetDragDelta(cursorPosition);
+                    if (dragDelta.X < 0 || dragDelta.X > 0 || dragDelta.Y < 0 || dragDelta.Y > 0)
+                        foreach (var element in SelectedElements)
+                        {
+                            SetLeft(element, GetLeft(element) + dragDelta.X);
+                            SetTop(element, GetTop(element) + dragDelta.Y);
+                        }
                 }
-                else if (mMouseLeftDown && GetSelected((UIElement) e.Source))
+                else if (mMouseLeftDown && GetSelected(source))
                 {
-                    var dragDelta = (cursorPosition - mCursorStart).Length;
-                    if (dragDelta > DragThreshold) mMovingElements = true;
+                    var dragDelta = (cursorPosition - mMouseDownPosition).Length;
+                    if (dragDelta > DragThreshold)
+                    {
+                        mMovingElements = true;
+                        foreach (var selectedElement in SelectedElements) SetRenderSelection(selectedElement, false);
+                    }
                 }
             }
 
@@ -359,7 +365,7 @@ namespace FreeArrangePanel.Controls
         private double mDragThreshold = 5.0;
         private double mSelectionThreshold = 0.5;
 
-        private Point mCursorStart;
+        private Point mMouseDownPosition;
 
         private bool mMouseLeftDown;
         private bool mControlDown;
@@ -463,6 +469,100 @@ namespace FreeArrangePanel.Controls
             }
 
             SetZIndex(element, newZIndex);
+        }
+
+        private Vector GetDragDelta(Point cursorPosition)
+        {
+            var dragDelta = cursorPosition - mMouseDownPosition;
+
+            var limit = new DeltaLimit();
+
+            foreach (var selectedElement in SelectedElements)
+            {
+                var rect = new Rect(GetLeft(selectedElement), GetTop(selectedElement),
+                    selectedElement.RenderSize.Width, selectedElement.RenderSize.Height);
+
+                // TODO: Add option to limit movement to the panel...
+                // if (LimitToPanel) {
+                if (rect.Left < limit.Left) limit.Left = rect.Left;
+                if (ActualWidth - rect.Right < limit.Right) limit.Right = ActualWidth - rect.Right;
+                if (rect.Top < limit.Top) limit.Top = rect.Top;
+                if (ActualHeight - rect.Bottom < limit.Bottom) limit.Bottom = ActualHeight - rect.Bottom;
+                // }
+
+                foreach (UIElement child in Children)
+                {
+                    // TODO: Add attached property to specify whether a control should be solid or not.
+                    if (GetSelected(child) || child.Visibility != Visibility.Visible) continue;
+
+                    var childRect = new Rect(GetLeft(child), GetTop(child),
+                        child.RenderSize.Width, child.RenderSize.Height);
+
+                    var delta = new DeltaLimit
+                    {
+                        Left = rect.Left - childRect.Right,
+                        Right = childRect.Left - rect.Right,
+                        Top = rect.Top - childRect.Bottom,
+                        Bottom = childRect.Top - rect.Bottom
+                    };
+
+                    if (delta.Left < 0 && delta.Right < 0) // NS
+                    {
+                        if (delta.Top >= 0 && delta.Top < limit.Top) limit.Top = delta.Top;
+                        if (delta.Bottom >= 0 && delta.Bottom < limit.Bottom) limit.Bottom = delta.Bottom;
+                    }
+
+                    if (delta.Top < 0 && delta.Bottom < 0) // WE
+                    {
+                        if (delta.Left >= 0 && delta.Left < limit.Left) limit.Left = delta.Left;
+                        if (delta.Right >= 0 && delta.Right < limit.Right) limit.Right = delta.Right;
+                    }
+
+                    // Since we have not handled NESW and NWSE, we must try to move
+                    // the element and if it overlaps nudge it out of the way.
+                    // So, we apply preliminary limits and try to move the element.
+
+                    if (dragDelta.X > 0 && dragDelta.X > limit.Right) dragDelta.X = limit.Right;
+                    if (dragDelta.X < 0 && -dragDelta.X > limit.Left) dragDelta.X = -limit.Left;
+                    if (dragDelta.Y > 0 && dragDelta.Y > limit.Bottom) dragDelta.Y = limit.Bottom;
+                    if (dragDelta.Y < 0 && -dragDelta.Y > limit.Top) dragDelta.Y = -limit.Top;
+
+                    var movedRect = Rect.Offset(rect, dragDelta);
+                    var intersection = Rect.Intersect(movedRect, childRect);
+
+                    // Test for empty rectangle.
+                    if (intersection.IsEmpty) continue;
+
+                    // Rectangle could still be "empty" because of the rounding of
+                    // floating points (two elements touching but not overlapping).
+                    if (intersection.Width < 0.1 || intersection.Height < 0.1) continue;
+
+                    // With that possibility ruled out, elements must be overlapping!
+                    // We need to adjust the limits according to the axis which is
+                    // overlapped the most (and according to drag direction).
+
+                    if (intersection.Width < intersection.Height)
+                    {
+                        if (dragDelta.X > 0 && delta.Right < limit.Right) limit.Right = delta.Right;
+                        if (dragDelta.X < 0 && delta.Left < limit.Left) limit.Left = delta.Left;
+                    }
+                    else
+                    {
+                        if (dragDelta.Y > 0 && delta.Bottom < limit.Bottom) limit.Bottom = delta.Bottom;
+                        if (dragDelta.Y < 0 && delta.Top < limit.Top) limit.Top = delta.Top;
+                    }
+                }
+            }
+
+            // If an intersection happened for the last child we checked,
+            // we need to update the dragDelta one last time!
+
+            if (dragDelta.X > 0 && dragDelta.X > limit.Right) dragDelta.X = limit.Right;
+            if (dragDelta.X < 0 && -dragDelta.X > limit.Left) dragDelta.X = -limit.Left;
+            if (dragDelta.Y > 0 && dragDelta.Y > limit.Bottom) dragDelta.Y = limit.Bottom;
+            if (dragDelta.Y < 0 && -dragDelta.Y > limit.Top) dragDelta.Y = -limit.Top;
+
+            return dragDelta;
         }
 
         #endregion
