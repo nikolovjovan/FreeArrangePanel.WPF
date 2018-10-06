@@ -19,8 +19,10 @@ namespace FreeArrangePanel.Controls
         public FreeArrangePanel()
         {
             mDragSelectionAdorner = new DragSelectionAdorner(this);
-            SelectedElements = new List<UIElement>();
             Background = Brushes.Transparent; // Mouse hit testing does not work when Background is null!
+            DragThreshold = 5.0; // Set default drag threshold
+            SelectionThreshold = 0.5; // Set default selection threshold
+            SelectedElements = new List<UIElement>();
             Focusable = true; // Allow the panel to get keyboard focus
             Loaded += OnPanelLoaded; // Add drag selection adorner on load
             Unloaded += OnPanelUnloaded; // Remove drag selection adorner on unload
@@ -28,6 +30,8 @@ namespace FreeArrangePanel.Controls
 
         static FreeArrangePanel()
         {
+            IsOverlappableProperty = DependencyProperty.RegisterAttached("IsOverlappable", typeof(bool),
+                typeof(FreeArrangePanel), new PropertyMetadata(false));
             SelectedProperty = DependencyProperty.RegisterAttached("Selected", typeof(bool),
                 typeof(FreeArrangePanel), new PropertyMetadata(false));
             RenderSelectionProperty = DependencyProperty.RegisterAttached("RenderSelection", typeof(bool),
@@ -40,6 +44,13 @@ namespace FreeArrangePanel.Controls
 
         #region Properties
 
+        /// <summary>
+        ///     Gets or sets a <see cref="T:System.Windows.Media.Brush" /> that is used to fill the area between the borders of a
+        ///     <see cref="FreeArrangePanel" />.
+        /// </summary>
+        /// <returns>
+        ///     A <see cref="T:System.Windows.Media.Brush" />. This default value is <see langword="transparent" />.
+        /// </returns>
         public new Brush Background
         {
             get => base.Background;
@@ -50,6 +61,12 @@ namespace FreeArrangePanel.Controls
             }
         }
 
+        /// <summary>
+        ///     Distance the mouse cursor needs to drag a selection or an element in order to start a drag.
+        /// </summary>
+        /// <returns>
+        ///     A <see cref="T:System.Double" />. This default value is <see langword="5.0" />.
+        /// </returns>
         public double DragThreshold
         {
             get => mDragThreshold;
@@ -60,6 +77,12 @@ namespace FreeArrangePanel.Controls
             }
         }
 
+        /// <summary>
+        ///     Percentage of the control that the drag selection rectangle needs to be over in order to select the element.
+        /// </summary>
+        /// <returns>
+        ///     A <see cref="T:System.Double" />. This default value is <see langword="0.5" />.
+        /// </returns>
         public double SelectionThreshold
         {
             get => mSelectionThreshold;
@@ -71,14 +94,60 @@ namespace FreeArrangePanel.Controls
             }
         }
 
-        public bool ForwardMouseEvents { get; set; }
+        /// <summary>
+        ///     Specifies whether to forward mouse events to the underlying controls.
+        /// </summary>
+        /// <returns>
+        ///     A <see cref="T:System.Boolean" />. This default value is <see langword="false" />.
+        /// </returns>
+        public bool ForwardMouseEvents { get; set; } = false;
 
+        /// <summary>
+        ///     Specifies whether to limit control movement to the panel bounds.
+        /// </summary>
+        /// <returns>
+        ///     A <see cref="T:System.Boolean" />. This default value is <see langword="true" />.
+        /// </returns>
+        public bool LimitMovementToPanel { get; set; } = true;
+
+        /// <summary>
+        ///     Specifies whether to prevent control overlap on controls with <see cref="IsOverlappableProperty" /> property set to
+        ///     false.
+        /// </summary>
+        /// <returns>
+        ///     A <see cref="T:System.Boolean" />. This default value is <see langword="true" />.
+        /// </returns>
+        public bool PreventOverlap { get; set; } = true;
+
+        /// <summary>
+        ///     List of elements currently selected.
+        /// </summary>
         public IList<UIElement> SelectedElements { get; }
+
+        /// <summary>
+        ///     Specifies whether this child is overlappable or not.
+        /// </summary>
+        public static readonly DependencyProperty IsOverlappableProperty;
+
+        public static void SetIsOverlappable(DependencyObject element, bool value)
+        {
+            if (element == null) throw new ArgumentException(nameof(element));
+            element.SetValue(IsOverlappableProperty, value);
+        }
+
+        public static bool GetIsOverlappable(DependencyObject element)
+        {
+            if (element == null) throw new ArgumentException(nameof(element));
+            return (bool) element.GetValue(IsOverlappableProperty);
+        }
 
         #endregion
 
         #region Methods
 
+        /// <summary>
+        ///     Selects all children.
+        /// </summary>
         public void SelectAll()
         {
             if (SelectedElements.Count == Children.Count) return;
@@ -86,6 +155,9 @@ namespace FreeArrangePanel.Controls
                 SetSelected(child, true);
         }
 
+        /// <summary>
+        ///     Deselects all children.
+        /// </summary>
         public void DeselectAll()
         {
             if (SelectedElements.Count == 0) return;
@@ -121,6 +193,13 @@ namespace FreeArrangePanel.Controls
             }
         }
 
+        protected static void OnElementLoaded(object sender, RoutedEventArgs e)
+        {
+            var element = (FrameworkElement) sender;
+            element.Loaded -= OnElementLoaded;
+            SetArrangeAdorner(element, new ArrangeAdorner(element));
+        }
+
         protected static void OnPanelLoaded(object sender, RoutedEventArgs e)
         {
             var panel = (FreeArrangePanel) sender;
@@ -133,13 +212,6 @@ namespace FreeArrangePanel.Controls
             var panel = (FreeArrangePanel) sender;
             panel.Unloaded -= OnPanelUnloaded;
             AdornerLayer.GetAdornerLayer(panel).Remove(panel.mDragSelectionAdorner);
-        }
-
-        protected static void OnElementLoaded(object sender, RoutedEventArgs e)
-        {
-            var element = (FrameworkElement) sender;
-            element.Loaded -= OnElementLoaded;
-            SetArrangeAdorner(element, new ArrangeAdorner(element));
         }
 
         #endregion
@@ -356,26 +428,70 @@ namespace FreeArrangePanel.Controls
 
         #region Fields 
 
+        /// <summary>
+        ///     Used to specify whether a control is selected or not.
+        /// </summary>
         private static readonly DependencyProperty SelectedProperty;
+
+        /// <summary>
+        ///     Used to specify whether the selection is being rendered or not.
+        /// </summary>
         private static readonly DependencyProperty RenderSelectionProperty;
+
+        /// <summary>
+        ///     Stores a reference to the ArrangeAdorner of an element.
+        /// </summary>
         private static readonly DependencyProperty ArrangeAdornerProperty;
 
+        /// <summary>
+        ///     Stores a reference to the DragSelectionAdorner of this panel.
+        /// </summary>
         private readonly DragSelectionAdorner mDragSelectionAdorner;
 
+        /// <summary>
+        ///     Specifies the distance the mouse needs to travel to start dragging.
+        /// </summary>
         private double mDragThreshold = 5.0;
+
+        /// <summary>
+        ///     Specifies the percentage of the control that the drag rectangle needs to be over in order to select it.
+        /// </summary>
         private double mSelectionThreshold = 0.5;
 
+        /// <summary>
+        ///     Stores the position of the mouse on MouseDown event.
+        /// </summary>
         private Point mMouseDownPosition;
 
+        /// <summary>
+        ///     Specifies whether the left mouse button is down.
+        /// </summary>
         private bool mMouseLeftDown;
+
+        /// <summary>
+        ///     Specifies whether the control button is down.
+        /// </summary>
         private bool mControlDown;
+
+        /// <summary>
+        ///     Specifies whether the user is drag selecting.
+        /// </summary>
         private bool mDragSelecting;
+
+        /// <summary>
+        ///     Specifies whether the selected elements are being moved.
+        /// </summary>
         private bool mMovingElements;
 
         #endregion
 
         #region Dependency Properties Methods
 
+        /// <summary>
+        ///     Sets the arrange adorner for the specified element.
+        /// </summary>
+        /// <param name="element">Child element of this panel.</param>
+        /// <param name="value">ArrangeAdorner object. If null, removes it from the element.</param>
         private static void SetArrangeAdorner(UIElement element, ArrangeAdorner value)
         {
             if (element == null) throw new ArgumentNullException(nameof(element));
@@ -392,6 +508,12 @@ namespace FreeArrangePanel.Controls
             return (ArrangeAdorner) element.GetValue(ArrangeAdornerProperty);
         }
 
+        /// <summary>
+        ///     Selects or deselects the specified element.
+        /// </summary>
+        /// <param name="element">Child element of this panel.</param>
+        /// <param name="value">True to select, False to deselect.</param>
+        /// <param name="modifyList">Specifies whether to modify the <see cref="SelectedElements"/> list.</param>
         private void SetSelected(UIElement element, bool value, bool modifyList = true)
         {
             if (element == null) throw new ArgumentNullException(nameof(element));
@@ -410,6 +532,11 @@ namespace FreeArrangePanel.Controls
             return (bool) element.GetValue(SelectedProperty);
         }
 
+        /// <summary>
+        ///     Sets the ArrangeAdorner visibility.
+        /// </summary>
+        /// <param name="element">Child element of this panel.</param>
+        /// <param name="value">True for Visible, False for Collapsed.</param>
         private static void SetRenderSelection(UIElement element, bool value)
         {
             if (element == null) throw new ArgumentNullException(nameof(element));
@@ -482,18 +609,20 @@ namespace FreeArrangePanel.Controls
                 var rect = new Rect(GetLeft(selectedElement), GetTop(selectedElement),
                     selectedElement.RenderSize.Width, selectedElement.RenderSize.Height);
 
-                // TODO: Add option to limit movement to the panel...
-                // if (LimitToPanel) {
-                if (rect.Left < limit.Left) limit.Left = rect.Left;
-                if (ActualWidth - rect.Right < limit.Right) limit.Right = ActualWidth - rect.Right;
-                if (rect.Top < limit.Top) limit.Top = rect.Top;
-                if (ActualHeight - rect.Bottom < limit.Bottom) limit.Bottom = ActualHeight - rect.Bottom;
-                // }
+                if (LimitMovementToPanel)
+                {
+                    if (rect.Left < limit.Left) limit.Left = rect.Left;
+                    if (ActualWidth - rect.Right < limit.Right) limit.Right = ActualWidth - rect.Right;
+                    if (rect.Top < limit.Top) limit.Top = rect.Top;
+                    if (ActualHeight - rect.Bottom < limit.Bottom) limit.Bottom = ActualHeight - rect.Bottom;
+                }
+
+                if (!PreventOverlap) continue;
 
                 foreach (UIElement child in Children)
                 {
-                    // TODO: Add attached property to specify whether a control should be solid or not.
-                    if (GetSelected(child) || child.Visibility != Visibility.Visible) continue;
+                    if (GetSelected(child) || GetIsOverlappable(child) ||
+                        child.Visibility != Visibility.Visible) continue;
 
                     var childRect = new Rect(GetLeft(child), GetTop(child),
                         child.RenderSize.Width, child.RenderSize.Height);
