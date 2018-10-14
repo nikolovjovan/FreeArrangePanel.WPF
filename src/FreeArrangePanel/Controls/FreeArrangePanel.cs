@@ -11,18 +11,17 @@ using FreeArrangePanel.Helpers;
 namespace FreeArrangePanel.Controls
 {
     /// <summary>
-    ///     Specifies arrange modes for a child element of FreeArrangePanel.
+    ///     Specifies the arrange mode for a child element of FreeArrangePanel.
     /// </summary>
     [Flags]
-    public enum ArrangeModes
+    public enum ArrangeMode
     {
         None = 0x0,
-        Move = 0x1,
+        MoveOnly = 0x1,
         ResizeHorizontal = 0x2,
         ResizeVertical = 0x4,
         ResizeNESW = 0x8,
         ResizeNWSE = 0x10,
-        MoveOnly = Move,
         ResizeSides = ResizeHorizontal | ResizeVertical,
         ResizeCorners = ResizeNESW | ResizeNWSE,
         ResizeOnly = ResizeSides | ResizeCorners,
@@ -53,20 +52,18 @@ namespace FreeArrangePanel.Controls
 
         static FreeArrangePanel()
         {
-            ArrangeModeProperty = DependencyProperty.RegisterAttached("ArrangeModes", typeof(ArrangeModes),
-                typeof(FreeArrangePanel), new PropertyMetadata(ArrangeModes.MoveAndResize));
+            // Public attached properties
+            ArrangeModeProperty = DependencyProperty.RegisterAttached("ArrangeModes", typeof(ArrangeMode),
+                typeof(FreeArrangePanel), new PropertyMetadata(ArrangeMode.MoveAndResize));
             IsOverlappableProperty = DependencyProperty.RegisterAttached("IsOverlappable", typeof(bool),
+                typeof(FreeArrangePanel), new PropertyMetadata(false));
+            // Private attached properties
+            ArrangeAdornerProperty = DependencyProperty.RegisterAttached("ArrangeAdorner", typeof(ArrangeAdorner),
+                typeof(FreeArrangePanel), new PropertyMetadata(null));
+            DragSelectedProperty = DependencyProperty.RegisterAttached("DragSelected", typeof(bool),
                 typeof(FreeArrangePanel), new PropertyMetadata(false));
             SelectedProperty = DependencyProperty.RegisterAttached("Selected", typeof(bool),
                 typeof(FreeArrangePanel), new PropertyMetadata(false));
-            ElementSelectionRenderModeProperty = DependencyProperty.RegisterAttached("ElementSelectionRenderMode",
-                typeof(bool),
-                typeof(FreeArrangePanel), new PropertyMetadata(false));
-            ElementResizeHandleRenderModeProperty = DependencyProperty.RegisterAttached("ElementResizeHandleRenderMode",
-                typeof(bool),
-                typeof(FreeArrangePanel), new PropertyMetadata(false));
-            ArrangeAdornerProperty = DependencyProperty.RegisterAttached("ArrangeAdorner", typeof(ArrangeAdorner),
-                typeof(FreeArrangePanel), new PropertyMetadata(null));
         }
 
         #endregion
@@ -74,11 +71,11 @@ namespace FreeArrangePanel.Controls
         #region Properties
 
         /// <summary>
-        ///     Gets or sets a <see cref="T:System.Windows.Media.Brush" /> that is used to fill the area between the borders of a
+        ///     Gets or sets a <see cref="Brush" /> that is used to fill the area between the borders of a
         ///     <see cref="FreeArrangePanel" />.
         /// </summary>
         /// <returns>
-        ///     A <see cref="T:System.Windows.Media.Brush" />. This default value is <see langword="transparent" />.
+        ///     A <see cref="Brush" />. This default value is <see langword="transparent" />.
         /// </returns>
         public new Brush Background
         {
@@ -91,11 +88,11 @@ namespace FreeArrangePanel.Controls
         }
 
         /// <summary>
-        ///     Gets or sets a <see cref="T:System.Double" /> that specifies the distance the mouse cursor needs to drag a
+        ///     Gets or sets a <see cref="double" /> that specifies the distance the mouse cursor needs to drag a
         ///     selection or an element in order to start a drag.
         /// </summary>
         /// <returns>
-        ///     A <see cref="T:System.Double" />. This default value is <see langword="5.0" />.
+        ///     A <see cref="double" />. This default value is <see langword="5.0" />.
         /// </returns>
         public double DragThreshold
         {
@@ -108,11 +105,11 @@ namespace FreeArrangePanel.Controls
         }
 
         /// <summary>
-        ///     Gets or sets a <see cref="T:System.Double" /> that specifies the percentage of the control that the drag selection
+        ///     Gets or sets a <see cref="double" /> that specifies the percentage of the control that the drag selection
         ///     rectangle needs to be over in order to select the element.
         /// </summary>
         /// <returns>
-        ///     A <see cref="T:System.Double" />. This default value is <see langword="0.5" />.
+        ///     A <see cref="double" />. This default value is <see langword="0.5" />.
         /// </returns>
         public double SelectionThreshold
         {
@@ -126,36 +123,36 @@ namespace FreeArrangePanel.Controls
         }
 
         /// <summary>
-        ///     Gets or sets a <see cref="T:System.Boolean" /> that specifies whether to forward mouse events to the underlying
+        ///     Gets or sets a <see cref="bool" /> that specifies whether to forward mouse events to the underlying
         ///     controls.
         /// </summary>
         /// <returns>
-        ///     A <see cref="T:System.Boolean" />. This default value is <see langword="false" />.
+        ///     A <see cref="bool" />. This default value is <see langword="false" />.
         /// </returns>
         public bool ForwardMouseEvents { get; set; } = false;
 
         /// <summary>
-        ///     Gets or sets a <see cref="T:System.Boolean" /> that specifies whether to limit control movement to the panel
+        ///     Gets or sets a <see cref="bool" /> that specifies whether to limit control movement to the panel
         ///     bounds.
         /// </summary>
         /// <returns>
-        ///     A <see cref="T:System.Boolean" />. This default value is <see langword="true" />.
+        ///     A <see cref="bool" />. This default value is <see langword="true" />.
         /// </returns>
         public bool LimitMovementToPanel { get; set; } = true;
 
         /// <summary>
-        ///     Gets or sets a <see cref="T:System.Boolean" /> that specifies whether to prevent control overlap on controls with
+        ///     Gets or sets a <see cref="bool" /> that specifies whether to prevent control overlap on controls with
         ///     <see cref="IsOverlappableProperty" /> property set to false.
         /// </summary>
         /// <returns>
-        ///     A <see cref="T:System.Boolean" />. This default value is <see langword="true" />.
+        ///     A <see cref="bool" />. This default value is <see langword="true" />.
         /// </returns>
         public bool PreventOverlap { get; set; } = true;
 
         /// <summary>
         ///     Gets a list of currently selected elements.
         /// </summary>
-        /// <returns>A <see cref="T:IList{UIElement}" /> that contains currently selected elements.</returns>
+        /// <returns>A <see cref="IList{UIElement}" /> that contains currently selected elements.</returns>
         public IList<UIElement> SelectedElements { get; }
 
         /// <summary>
@@ -169,42 +166,66 @@ namespace FreeArrangePanel.Controls
         public RenderMode ResizeHandleRenderMode { get; set; } = RenderMode.Outside;
 
         /// <summary>
-        ///     Specifies the <see cref="ArrangeModes" /> of this element.
+        ///     Specifies the <see cref="ArrangeMode" /> of the child element.
         /// </summary>
         public static readonly DependencyProperty ArrangeModeProperty;
 
-        public static void SetArrangeMode(DependencyObject element, bool value)
+        /// <summary>
+        ///     Specifies whether the child element is overlappable or not.
+        /// </summary>
+        public static readonly DependencyProperty IsOverlappableProperty;
+
+        #endregion
+
+        #region Dependency Property Methods
+
+        /// <summary>
+        ///     Sets the <see cref="ArrangeMode" /> of the specified element.
+        /// </summary>
+        /// <param name="element">A child element of this panel.</param>
+        /// <param name="value">New <see cref="ArrangeMode" /> of the specified element.</param>
+        public static void SetArrangeMode(DependencyObject element, ArrangeMode value)
         {
             if (element == null) throw new ArgumentException(nameof(element));
             element.SetValue(ArrangeModeProperty, value);
         }
 
-        public static bool GetArrangeMode(DependencyObject element)
+        /// <summary>
+        ///     Gets the <see cref="ArrangeMode" /> of the specified element.
+        /// </summary>
+        /// <param name="element">A child element of this panel.</param>
+        /// <returns><see cref="ArrangeMode" /> of the specified element.</returns>
+        public static ArrangeMode GetArrangeMode(DependencyObject element)
         {
             if (element == null) throw new ArgumentException(nameof(element));
-            return (bool) element.GetValue(ArrangeModeProperty);
+            return (ArrangeMode)element.GetValue(ArrangeModeProperty);
         }
 
         /// <summary>
-        ///     Specifies whether this child is overlappable or not.
+        ///     Sets a <see cref="bool" /> value that specifies whether an element is overlappable or not.
         /// </summary>
-        public static readonly DependencyProperty IsOverlappableProperty;
-
+        /// <param name="element">A child element of this panel.</param>
+        /// <param name="value">A <see cref="bool" /> value that specifies whether an element is overlappable or not.</param>
         public static void SetIsOverlappable(DependencyObject element, bool value)
         {
             if (element == null) throw new ArgumentException(nameof(element));
             element.SetValue(IsOverlappableProperty, value);
         }
 
+        /// <summary>
+        ///     Gets the <see cref="bool" /> value that specifies whether an element is overlappable or not.
+        /// </summary>
+        /// <param name="element">A child element of this panel.</param>
+        /// <returns>A <see cref="bool" /> value that specifies whether an element is overlappable or not.</returns>
         public static bool GetIsOverlappable(DependencyObject element)
         {
             if (element == null) throw new ArgumentException(nameof(element));
-            return (bool) element.GetValue(IsOverlappableProperty);
+            return (bool)element.GetValue(IsOverlappableProperty);
         }
 
         #endregion
 
-        #region Methods
+        #region Other Methods
 
         /// <summary>
         ///     Selects all children.
@@ -338,7 +359,10 @@ namespace FreeArrangePanel.Controls
                 }
 
                 mMovingElements = false;
-                foreach (var selectedElement in SelectedElements) SetElementSelectionRenderMode(selectedElement, true);
+
+                // Show the selection overlays since the move is done
+                foreach (var selectedElement in SelectedElements)
+                    SetSelectionOverlayVisibility(selectedElement, true);
 
                 element.ReleaseMouseCapture();
 
@@ -349,9 +373,14 @@ namespace FreeArrangePanel.Controls
 
             if (mDragSelecting)
             {
-                SetDragSelecting(false);
+                // Hide the drag selection overlay
+                SetDragSelectionOverlayVisibility(false);
+                // Show the resize overlay if there was only one selected element
+                if (SelectedElements.Count == 1)
+                    SetResizeHandleVisibility(SelectedElements[0], true);
+                // Select the elements that were drag selected (automatically updates the overlays)
                 foreach (UIElement child in Children)
-                    SetSelected(child, GetElementSelectionRenderMode(child));
+                    SetSelected(child, GetDragSelected(child));
             }
 
             mMovingElements = false;
@@ -384,8 +413,8 @@ namespace FreeArrangePanel.Controls
                             ? 0.0
                             : intersection.Width * intersection.Height / (childRect.Width * childRect.Height);
                         var value = mControlDown && GetSelected(child);
-                        if (percentage >= SelectionThreshold) SetElementSelectionRenderMode(child, !value);
-                        else SetElementSelectionRenderMode(child, value);
+                        if (percentage >= SelectionThreshold) SetDragSelected(child, !value);
+                        else SetDragSelected(child, value);
                     }
                 }
                 else if (mMouseLeftDown)
@@ -393,8 +422,13 @@ namespace FreeArrangePanel.Controls
                     var dragDelta = (cursorPosition - mDragSelectionAdorner.StartPoint).Length;
                     if (dragDelta > DragThreshold)
                     {
-                        SetDragSelecting(true);
+                        // Show the drag selection overlay
+                        SetDragSelectionOverlayVisibility(true);
                         mDragSelectionAdorner.EndPoint = cursorPosition;
+
+                        // Hide the resize overlay if there was only one selected element
+                        if (SelectedElements.Count == 1)
+                            SetResizeHandleVisibility(SelectedElements[0], false);
                     }
                 }
             }
@@ -416,8 +450,10 @@ namespace FreeArrangePanel.Controls
                     if (dragDelta > DragThreshold)
                     {
                         mMovingElements = true;
+
+                        // Hide the selection overlays before starting the move
                         foreach (var selectedElement in SelectedElements)
-                            SetElementSelectionRenderMode(selectedElement, false);
+                            SetSelectionOverlayVisibility(selectedElement, false);
                     }
                 }
             }
@@ -489,19 +525,14 @@ namespace FreeArrangePanel.Controls
         #region Fields 
 
         /// <summary>
-        ///     Specifies whether a control is selected or not.
+        ///     Specifies whether an element is selected or not.
         /// </summary>
         private static readonly DependencyProperty SelectedProperty;
 
         /// <summary>
         ///     Specifies the selection <see cref="RenderMode" /> of an element.
         /// </summary>
-        private static readonly DependencyProperty ElementSelectionRenderModeProperty;
-
-        /// <summary>
-        ///     Specifies the resize handle <see cref="RenderMode" /> of an element.
-        /// </summary>
-        private static readonly DependencyProperty ElementResizeHandleRenderModeProperty;
+        private static readonly DependencyProperty DragSelectedProperty;
 
         /// <summary>
         ///     Stores a reference to the <see cref="ArrangeAdorner" /> of an element.
@@ -519,7 +550,7 @@ namespace FreeArrangePanel.Controls
         private double mDragThreshold = 5.0;
 
         /// <summary>
-        ///     Specifies the percentage of the control that the drag rectangle needs to be over in order to select it.
+        ///     Specifies the percentage of the control that the drag selection rectangle needs to be over in order to select it.
         /// </summary>
         private double mSelectionThreshold = 0.5;
 
@@ -550,7 +581,7 @@ namespace FreeArrangePanel.Controls
 
         #endregion
 
-        #region Dependency Properties Methods
+        #region Dependency Property Methods
 
         /// <summary>
         ///     Sets the <see cref="ArrangeAdorner" /> of the specified element.
@@ -579,21 +610,38 @@ namespace FreeArrangePanel.Controls
         }
 
         /// <summary>
-        ///     Selects or deselects the specified element.
+        ///     Sets the selection of the specified element.
         /// </summary>
         /// <param name="element">A child element of this panel.</param>
         /// <param name="value">True to select, False to deselect.</param>
-        /// <param name="modifyList">Specifies whether to modify the <see cref="SelectedElements" /> list.</param>
-        private void SetSelected(UIElement element, bool value, bool modifyList = true)
+        /// <param name="remove">Specifies whether to remove the <see cref="SelectedElements" /> list if deselected.</param>
+        private void SetSelected(UIElement element, bool value, bool remove = true)
         {
             if (element == null) throw new ArgumentNullException(nameof(element));
             if (value == (bool) element.GetValue(SelectedProperty)) return;
             element.SetValue(SelectedProperty, value);
-            SetElementSelectionRenderMode(element, value);
             UpdateZOrder(element);
-            if (!modifyList) return;
-            if (value) SelectedElements.Add(element);
-            else SelectedElements.Remove(element);
+            SetSelectionOverlayVisibility(element, value);
+            if (value)
+            {
+                // Always add the element to the list if it is not already added
+                SelectedElements.Add(element);
+                // We can resize the element only if it is the only selected element
+                SetResizeHandleVisibility(element, SelectedElements.Count == 1);
+                // Otherwise we must disable resizing if one more element gets selected
+                if (SelectedElements.Count == 2)
+                    SetResizeHandleVisibility(SelectedElements[0], false);
+            }
+            else
+            {
+                // Always remove the element from the list except if we are deselecting all elements
+                if (remove) SelectedElements.Remove(element);
+                // Disable resizing for this element since it is deselected
+                SetResizeHandleVisibility(element, false);
+                // If the element was removed and there is exactly one element left, enable resizing
+                if (remove && SelectedElements.Count == 1)
+                    SetResizeHandleVisibility(SelectedElements[0], true);
+            }
         }
 
         /// <summary>
@@ -614,11 +662,11 @@ namespace FreeArrangePanel.Controls
         /// <param name="value">
         ///     True for <see cref="SelectionRenderMode" />, False for <see cref="RenderMode.None" />.
         /// </param>
-        private void SetElementSelectionRenderMode(UIElement element, bool value)
+        private void SetDragSelected(UIElement element, bool value)
         {
             if (element == null) throw new ArgumentNullException(nameof(element));
-            element.SetValue(ElementSelectionRenderModeProperty, value);
-            GetArrangeAdorner(element).SelectionRenderMode = value ? SelectionRenderMode : RenderMode.None;
+            element.SetValue(DragSelectedProperty, value);
+            SetSelectionOverlayVisibility(element, value);
         }
 
         /// <summary>
@@ -626,35 +674,10 @@ namespace FreeArrangePanel.Controls
         /// </summary>
         /// <param name="element">A child element of this panel.</param>
         /// <returns>Selection <see cref="RenderMode" /> of the specified element.</returns>
-        private static bool GetElementSelectionRenderMode(UIElement element)
+        private static bool GetDragSelected(UIElement element)
         {
             if (element == null) throw new ArgumentNullException(nameof(element));
-            return (bool) element.GetValue(ElementSelectionRenderModeProperty);
-        }
-
-        /// <summary>
-        ///     Sets the resize handle <see cref="RenderMode" /> of the specified element.
-        /// </summary>
-        /// <param name="element">A child element of this panel.</param>
-        /// <param name="value">
-        ///     True for <see cref="ResizeHandleRenderMode" />, False for <see cref="RenderMode.None" />.
-        /// </param>
-        private void SetElementResizeHandleRenderMode(UIElement element, bool value)
-        {
-            if (element == null) throw new ArgumentNullException(nameof(element));
-            element.SetValue(ElementResizeHandleRenderModeProperty, value);
-            GetArrangeAdorner(element).ResizeHandleRenderMode = value ? ResizeHandleRenderMode : RenderMode.None;
-        }
-
-        /// <summary>
-        ///     Gets the resize handle <see cref="RenderMode" /> of the specified element.
-        /// </summary>
-        /// <param name="element">A child element of this panel.</param>
-        /// <returns>Resize handle <see cref="RenderMode" /> of the specified element.</returns>
-        private static bool GetElementResizeHandleRenderMode(UIElement element)
-        {
-            if (element == null) throw new ArgumentNullException(nameof(element));
-            return (bool) element.GetValue(ElementResizeHandleRenderModeProperty);
+            return (bool) element.GetValue(DragSelectedProperty);
         }
 
         #endregion
@@ -665,10 +688,36 @@ namespace FreeArrangePanel.Controls
         ///     Sets the <see cref="DragSelectionAdorner" /> visibility and updates the <see cref="mDragSelecting" /> flag.
         /// </summary>
         /// <param name="value">True for Visible, False for Collapsed.</param>
-        private void SetDragSelecting(bool value)
+        private void SetDragSelectionOverlayVisibility(bool value)
         {
             mDragSelecting = value;
             mDragSelectionAdorner.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>
+        ///     Sets the selection overlay visibility of the specified element by changing its <see cref="RenderMode"/>.
+        /// </summary>
+        /// <param name="element">A child element of this panel.</param>
+        /// <param name="value">
+        ///     True for <see cref="SelectionRenderMode" />, False for <see cref="RenderMode.None" />.
+        /// </param>
+        private void SetSelectionOverlayVisibility(UIElement element, bool value)
+        {
+            if (element == null) throw new ArgumentNullException(nameof(element));
+            GetArrangeAdorner(element).SelectionRenderMode = value ? SelectionRenderMode : RenderMode.None;
+        }
+
+        /// <summary>
+        ///     Sets the resize handle overlay visibility of the specified element by changing its <see cref="RenderMode"/>.
+        /// </summary>
+        /// <param name="element">A child element of this panel.</param>
+        /// <param name="value">
+        ///     True for <see cref="ResizeHandleRenderMode" />, False for <see cref="RenderMode.None" />.
+        /// </param>
+        private void SetResizeHandleVisibility(UIElement element, bool value)
+        {
+            if (element == null) throw new ArgumentNullException(nameof(element));
+            GetArrangeAdorner(element).ResizeHandleRenderMode = value ? ResizeHandleRenderMode : RenderMode.None;
         }
 
         /// <summary>
@@ -678,9 +727,12 @@ namespace FreeArrangePanel.Controls
         /// <param name="remove">True to remove the element from the visual tree, False otherwise.</param>
         private void UpdateZOrder(UIElement element, bool remove = false)
         {
-            var elementZIndex = GetZIndex(element);
+            if (element == null) throw new ArgumentNullException(nameof(element));
 
-            if (remove || GetSelected(element))
+            var elementZIndex = GetZIndex(element);
+            var elementNewZIndex = int.MaxValue;
+
+            if (GetSelected(element) || remove)
             {
                 // Decrement the ZIndices of elements with higher ZIndex than this.
                 foreach (UIElement child in Children)
@@ -691,27 +743,27 @@ namespace FreeArrangePanel.Controls
 
                 // If the element is being removed, we are done.
                 if (remove) return;
-                // Else the element is being selected, so we need to push it to the top.
-                SetZIndex(element, Children.Count - 1);
-                return;
+
+                // Else the element is being selected, so we need set its ZIndex to max.
+                elementNewZIndex = Children.Count - 1;
             }
-
-            // Since the element is being deselected, we need to push it down below all
-            // selected elements but still above all deselected elements.
-            // So, we increment the ZIndices of elements with lower ZIndex than this,
-            // and then set the ZIndex of this element to the lowest ZIndex of the
-            // selected elements.
-
-            var newZIndex = int.MaxValue;
-
-            foreach (var selectedElement in SelectedElements)
+            else
             {
-                var childZIndex = GetZIndex(selectedElement);
-                if (childZIndex < elementZIndex) SetZIndex(selectedElement, childZIndex + 1);
-                if (childZIndex < newZIndex) newZIndex = childZIndex;
+                // Since the element is being deselected, we need to push it down below all
+                // selected elements but still above all deselected elements.
+                // So, we increment the ZIndices of elements with lower ZIndex than this,
+                // and then set the ZIndex of this element to the lowest ZIndex of the
+                // selected elements.
+
+                foreach (var selectedElement in SelectedElements)
+                {
+                    var childZIndex = GetZIndex(selectedElement);
+                    if (childZIndex < elementZIndex) SetZIndex(selectedElement, childZIndex + 1);
+                    if (childZIndex < elementNewZIndex) elementNewZIndex = childZIndex;
+                }
             }
 
-            SetZIndex(element, newZIndex);
+            SetZIndex(element, elementNewZIndex);
         }
 
         /// <summary>
@@ -743,6 +795,9 @@ namespace FreeArrangePanel.Controls
 
                 foreach (UIElement child in Children)
                 {
+                    // TODO: Implement better collision detection and resolution...
+                    //       This one has unforeseen consequences...
+
                     if (GetSelected(child) || GetIsOverlappable(child) ||
                         child.Visibility != Visibility.Visible) continue;
 

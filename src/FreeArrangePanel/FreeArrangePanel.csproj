@@ -60,6 +60,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Helpers\DeltaLimit.cs" />
+    <Compile Include="Helpers\DrawingHelper.cs" />
     <Compile Include="Helpers\ResizeHandles.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>

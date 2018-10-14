@@ -34,8 +34,10 @@ namespace FreeArrangePanel.Adorners
             SelectionFill = null;
             SelectionStroke = new SolidColorBrush(Color.FromRgb(0x00, 0x00, 0xFF));
             SelectionStrokeThickness = 2.0;
-            ThumbFill = new SolidColorBrush(Color.FromRgb(0x00, 0x00, 0xFF));
-            ThumbStroke = null;
+            //ThumbFill = new SolidColorBrush(Color.FromRgb(0x00, 0x00, 0xFF));
+            //ThumbStroke = null;
+            ThumbFill = new SolidColorBrush(Color.FromRgb(0xFF, 0x00, 0xFF));
+            ThumbStroke = Brushes.Black;
             ThumbStrokeThickness = 1.0;
             ThumbSize = 10;
             mVisualChildren = new VisualCollection(this);
@@ -47,7 +49,7 @@ namespace FreeArrangePanel.Adorners
         #region Properties
 
         /// <summary>
-        ///     Gets or sets a value that specifies the <see cref="RenderMode" /> used for rendering selection rectangle.
+        ///     Gets or sets the <see cref="RenderMode" /> used for rendering selection rectangle.
         /// </summary>
         public RenderMode SelectionRenderMode
         {
@@ -60,7 +62,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets a value that specifies the <see cref="RenderMode" /> used for rendering resize handles.
+        ///     Gets or sets the <see cref="RenderMode" /> used for rendering resize handles.
         /// </summary>
         public RenderMode ResizeHandleRenderMode
         {
@@ -73,7 +75,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets the <see cref="Brush" /> that paints the interior area of the selection rectangle.
+        ///     Gets or sets a <see cref="Brush" /> that paints the interior area of the selection rectangle.
         /// </summary>
         public Brush SelectionFill
         {
@@ -86,7 +88,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets the <see cref="Brush" /> that specifies how the selection rectangle outline is painted.
+        ///     Gets or sets a <see cref="Brush" /> that specifies how the selection rectangle outline is painted.
         /// </summary>
         public Brush SelectionStroke
         {
@@ -99,7 +101,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets the width of the selection rectangle outline.
+        ///     Gets or sets a <see cref="double" /> that specifies the width of the selection rectangle outline.
         /// </summary>
         [TypeConverter(typeof(LengthConverter))]
         public double SelectionStrokeThickness
@@ -113,7 +115,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets the <see cref="Brush" /> that paints the interior area of the resize handle thumb.
+        ///     Gets or sets a <see cref="Brush" /> that paints the interior area of the resize handle thumb.
         /// </summary>
         public Brush ThumbFill
         {
@@ -126,7 +128,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets the <see cref="Brush" /> that specifies how the resize handle thumb outline is painted.
+        ///     Gets or sets a <see cref="Brush" /> that specifies how the resize handle thumb outline is painted.
         /// </summary>
         public Brush ThumbStroke
         {
@@ -139,7 +141,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets the width of the selection rectangle outline.
+        ///     Gets or sets a <see cref="double" /> that specifies the width of the selection rectangle outline.
         /// </summary>
         [TypeConverter(typeof(LengthConverter))]
         public double ThumbStrokeThickness
@@ -153,7 +155,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets a value that specifies the thumb width used for rendering resize handles.
+        ///     Gets or sets a <see cref="double" /> that specifies the thumb width used for rendering resize handles.
         /// </summary>
         [TypeConverter(typeof(LengthConverter))]
         public double ThumbSize
@@ -174,41 +176,40 @@ namespace FreeArrangePanel.Adorners
 
         protected override void OnRender(DrawingContext drawingContext)
         {
-            var dpiFactor = 1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
+            var scaleFactor =
+                1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
 
             if (SelectionRenderMode != RenderMode.None)
             {
-                double strokeThickness = 0;
-                if (SelectionStroke != null) strokeThickness = SelectionStrokeThickness * dpiFactor;
+                var strokeThickness = ThumbStroke != null ? SelectionStrokeThickness * scaleFactor : 0;
 
-                Pen drawingPen = null;
-                if (strokeThickness > 0) drawingPen = new Pen(SelectionStroke, strokeThickness);
+                var pen = strokeThickness > 0 ? new Pen(SelectionStroke, strokeThickness) : null;
 
-                Rect drawingRect;
-                if (SelectionRenderMode == RenderMode.Inside)
-                    drawingRect = new Rect(strokeThickness / 2, strokeThickness / 2,
+                Rect rect;
+                if (SelectionRenderMode != RenderMode.Inside)
+                    rect = new Rect(strokeThickness / 2, strokeThickness / 2,
                         AdornedElement.RenderSize.Width - strokeThickness,
                         AdornedElement.RenderSize.Height - strokeThickness);
                 else
-                    drawingRect = new Rect(-strokeThickness / 2, -strokeThickness / 2,
+                    rect = new Rect(-strokeThickness / 2, -strokeThickness / 2,
                         AdornedElement.RenderSize.Width + strokeThickness,
                         AdornedElement.RenderSize.Height + strokeThickness);
 
-                var correction = strokeThickness / 2;
-                var guidelines = new GuidelineSet();
-
-                guidelines.GuidelinesX.Add(drawingRect.Left + correction);
-                guidelines.GuidelinesX.Add(drawingRect.Right + correction);
-                guidelines.GuidelinesY.Add(drawingRect.Top + correction);
-                guidelines.GuidelinesY.Add(drawingRect.Bottom + correction);
-
-                drawingContext.PushGuidelineSet(guidelines);
-                drawingContext.DrawRectangle(SelectionFill, drawingPen, drawingRect);
-                drawingContext.Pop();
+                DrawingHelper.DrawRectangle(drawingContext, SelectionFill, pen, rect);
             }
 
-            if (ResizeHandleRenderMode == RenderMode.Outside)
+            if (ResizeHandleRenderMode != RenderMode.None)
             {
+                var thumbSize = ThumbSize * scaleFactor;
+                var strokeThickness = ThumbStroke != null ? ThumbStrokeThickness * scaleFactor : 0;
+
+                var pen = strokeThickness > 0 ? new Pen(ThumbStroke, strokeThickness) : null;
+
+                var rect = new Rect((AdornedElement.RenderSize.Width - thumbSize + strokeThickness) / 2,
+                    (AdornedElement.RenderSize.Height - thumbSize + strokeThickness) / 2,
+                    thumbSize - strokeThickness, thumbSize - strokeThickness);
+
+                DrawingHelper.DrawRectangle(drawingContext, ThumbFill, pen, rect);
             }
         }
 
