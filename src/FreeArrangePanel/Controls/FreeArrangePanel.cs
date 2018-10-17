@@ -198,7 +198,7 @@ namespace FreeArrangePanel.Controls
         public static ArrangeMode GetArrangeMode(DependencyObject element)
         {
             if (element == null) throw new ArgumentException(nameof(element));
-            return (ArrangeMode)element.GetValue(ArrangeModeProperty);
+            return (ArrangeMode) element.GetValue(ArrangeModeProperty);
         }
 
         /// <summary>
@@ -220,7 +220,7 @@ namespace FreeArrangePanel.Controls
         public static bool GetIsOverlappable(DependencyObject element)
         {
             if (element == null) throw new ArgumentException(nameof(element));
-            return (bool)element.GetValue(IsOverlappableProperty);
+            return (bool) element.GetValue(IsOverlappableProperty);
         }
 
         #endregion
@@ -246,6 +246,34 @@ namespace FreeArrangePanel.Controls
             foreach (var selectedElement in SelectedElements)
                 SetSelected(selectedElement, false, false);
             SelectedElements.Clear();
+        }
+
+        /// <summary>
+        ///     Generates the list of selected elements rects and the list of static elements rects.
+        /// </summary>
+        /// <param name="selectedRects">A <see cref="IList{Rect}" /> of selected elements rects.</param>
+        /// <param name="staticRects">A <see cref="IList{Rect}" /> of non selected static elements rects.</param>
+        internal void GenerateElementRects(out IList<Rect> selectedRects, out IList<Rect> staticRects)
+        {
+            selectedRects = staticRects = null;
+
+            if (SelectedElements.Count == 0 || !LimitMovementToPanel && !PreventOverlap) return;
+
+            selectedRects = new List<Rect>();
+            foreach (var element in SelectedElements)
+                selectedRects.Add(new Rect(
+                    GetLeft(element), GetTop(element),
+                    element.RenderSize.Width, element.RenderSize.Height));
+
+            if (!PreventOverlap) return;
+
+            staticRects = new List<Rect>();
+            foreach (UIElement child in Children)
+                if (!GetSelected(child) && !GetIsOverlappable(child) &&
+                    child.Visibility == Visibility.Visible)
+                    staticRects.Add(new Rect(
+                        GetLeft(child), GetTop(child),
+                        child.RenderSize.Width, child.RenderSize.Height));
         }
 
         #endregion
@@ -401,9 +429,8 @@ namespace FreeArrangePanel.Controls
             {
                 if (mDragSelecting)
                 {
-                    mDragSelectionAdorner.EndPoint = cursorPosition;
-
                     mControlDown = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
+                    mDragSelectionAdorner.EndPoint = cursorPosition;
                     var dragRect = new Rect(mDragSelectionAdorner.StartPoint, mDragSelectionAdorner.EndPoint);
                     foreach (UIElement child in Children)
                     {
@@ -419,8 +446,8 @@ namespace FreeArrangePanel.Controls
                 }
                 else if (mMouseLeftDown)
                 {
-                    var dragDelta = (cursorPosition - mDragSelectionAdorner.StartPoint).Length;
-                    if (dragDelta > DragThreshold)
+                    var dragLength = (cursorPosition - mDragSelectionAdorner.StartPoint).Length;
+                    if (dragLength > DragThreshold)
                     {
                         // Show the drag selection overlay
                         SetDragSelectionOverlayVisibility(true);
@@ -434,10 +461,13 @@ namespace FreeArrangePanel.Controls
             }
             else
             {
-                if (mMovingElements)
+                var dragDelta = cursorPosition - mMouseDownPosition;
+                if (mMovingElements && (Math.Abs(dragDelta.X) > 0.01 || Math.Abs(dragDelta.Y) > 0.01))
                 {
-                    var dragDelta = GetDragDelta(cursorPosition);
-                    if (dragDelta.X < 0 || dragDelta.X > 0 || dragDelta.Y < 0 || dragDelta.Y > 0)
+                    GenerateElementRects(out var selectedRects, out var staticRects);
+                    OverlapHelper.AdjustDragDelta(ref dragDelta, RectEdge.None, selectedRects, staticRects,
+                        LimitMovementToPanel ? RenderSize : Size.Empty);
+                    if (Math.Abs(dragDelta.X) > 0.01 || Math.Abs(dragDelta.Y) > 0.01)
                         foreach (var element in SelectedElements)
                         {
                             SetLeft(element, GetLeft(element) + dragDelta.X);
@@ -446,8 +476,7 @@ namespace FreeArrangePanel.Controls
                 }
                 else if (mMouseLeftDown && GetSelected(source))
                 {
-                    var dragDelta = (cursorPosition - mMouseDownPosition).Length;
-                    if (dragDelta > DragThreshold)
+                    if (dragDelta.Length > DragThreshold)
                     {
                         mMovingElements = true;
 
@@ -695,7 +724,7 @@ namespace FreeArrangePanel.Controls
         }
 
         /// <summary>
-        ///     Sets the selection overlay visibility of the specified element by changing its <see cref="RenderMode"/>.
+        ///     Sets the selection overlay visibility of the specified element by changing its <see cref="RenderMode" />.
         /// </summary>
         /// <param name="element">A child element of this panel.</param>
         /// <param name="value">
@@ -708,7 +737,7 @@ namespace FreeArrangePanel.Controls
         }
 
         /// <summary>
-        ///     Sets the resize handle overlay visibility of the specified element by changing its <see cref="RenderMode"/>.
+        ///     Sets the resize handle overlay visibility of the specified element by changing its <see cref="RenderMode" />.
         /// </summary>
         /// <param name="element">A child element of this panel.</param>
         /// <param name="value">
@@ -764,111 +793,6 @@ namespace FreeArrangePanel.Controls
             }
 
             SetZIndex(element, elementNewZIndex);
-        }
-
-        /// <summary>
-        ///     Gets the drag delta of the selected element(s).
-        /// </summary>
-        /// <param name="cursorPosition"></param>
-        /// <returns>A <see cref="Vector" /> that contains the drag delta of the selected element(s).</returns>
-        /// <remarks>This is a method that does all the calculations for element overlapping and movement out of parent bounds.</remarks>
-        private Vector GetDragDelta(Point cursorPosition)
-        {
-            var dragDelta = cursorPosition - mMouseDownPosition;
-
-            var limit = new DeltaLimit();
-
-            foreach (var selectedElement in SelectedElements)
-            {
-                var rect = new Rect(GetLeft(selectedElement), GetTop(selectedElement),
-                    selectedElement.RenderSize.Width, selectedElement.RenderSize.Height);
-
-                if (LimitMovementToPanel)
-                {
-                    if (rect.Left < limit.Left) limit.Left = rect.Left;
-                    if (ActualWidth - rect.Right < limit.Right) limit.Right = ActualWidth - rect.Right;
-                    if (rect.Top < limit.Top) limit.Top = rect.Top;
-                    if (ActualHeight - rect.Bottom < limit.Bottom) limit.Bottom = ActualHeight - rect.Bottom;
-                }
-
-                if (!PreventOverlap) continue;
-
-                foreach (UIElement child in Children)
-                {
-                    // TODO: Implement better collision detection and resolution...
-                    //       This one has unforeseen consequences...
-
-                    if (GetSelected(child) || GetIsOverlappable(child) ||
-                        child.Visibility != Visibility.Visible) continue;
-
-                    var childRect = new Rect(GetLeft(child), GetTop(child),
-                        child.RenderSize.Width, child.RenderSize.Height);
-
-                    var delta = new DeltaLimit
-                    {
-                        Left = rect.Left - childRect.Right,
-                        Right = childRect.Left - rect.Right,
-                        Top = rect.Top - childRect.Bottom,
-                        Bottom = childRect.Top - rect.Bottom
-                    };
-
-                    if (delta.Left < 0 && delta.Right < 0) // NS
-                    {
-                        if (delta.Top >= 0 && delta.Top < limit.Top) limit.Top = delta.Top;
-                        if (delta.Bottom >= 0 && delta.Bottom < limit.Bottom) limit.Bottom = delta.Bottom;
-                    }
-
-                    if (delta.Top < 0 && delta.Bottom < 0) // WE
-                    {
-                        if (delta.Left >= 0 && delta.Left < limit.Left) limit.Left = delta.Left;
-                        if (delta.Right >= 0 && delta.Right < limit.Right) limit.Right = delta.Right;
-                    }
-
-                    // Since we have not handled NESW and NWSE, we must try to move
-                    // the element and if it overlaps nudge it out of the way.
-                    // So, we apply preliminary limits and try to move the element.
-
-                    if (dragDelta.X > 0 && dragDelta.X > limit.Right) dragDelta.X = limit.Right;
-                    if (dragDelta.X < 0 && -dragDelta.X > limit.Left) dragDelta.X = -limit.Left;
-                    if (dragDelta.Y > 0 && dragDelta.Y > limit.Bottom) dragDelta.Y = limit.Bottom;
-                    if (dragDelta.Y < 0 && -dragDelta.Y > limit.Top) dragDelta.Y = -limit.Top;
-
-                    var movedRect = Rect.Offset(rect, dragDelta);
-                    var intersection = Rect.Intersect(movedRect, childRect);
-
-                    // Test for empty rectangle.
-                    if (intersection.IsEmpty) continue;
-
-                    // Rectangle could still be "empty" because of the rounding of
-                    // floating points (two elements touching but not overlapping).
-                    if (intersection.Width < 0.1 || intersection.Height < 0.1) continue;
-
-                    // With that possibility ruled out, elements must be overlapping!
-                    // We need to adjust the limits according to the axis which is
-                    // overlapped the most (and according to drag direction).
-
-                    if (intersection.Width < intersection.Height)
-                    {
-                        if (dragDelta.X > 0 && delta.Right < limit.Right) limit.Right = delta.Right;
-                        if (dragDelta.X < 0 && delta.Left < limit.Left) limit.Left = delta.Left;
-                    }
-                    else
-                    {
-                        if (dragDelta.Y > 0 && delta.Bottom < limit.Bottom) limit.Bottom = delta.Bottom;
-                        if (dragDelta.Y < 0 && delta.Top < limit.Top) limit.Top = delta.Top;
-                    }
-                }
-            }
-
-            // If an intersection happened for the last child we checked,
-            // we need to update the dragDelta one last time!
-
-            if (dragDelta.X > 0 && dragDelta.X > limit.Right) dragDelta.X = limit.Right;
-            if (dragDelta.X < 0 && -dragDelta.X > limit.Left) dragDelta.X = -limit.Left;
-            if (dragDelta.Y > 0 && dragDelta.Y > limit.Bottom) dragDelta.Y = limit.Bottom;
-            if (dragDelta.Y < 0 && -dragDelta.Y > limit.Top) dragDelta.Y = -limit.Top;
-
-            return dragDelta;
         }
 
         #endregion
