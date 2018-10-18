@@ -147,25 +147,14 @@ namespace FreeArrangePanel.Helpers
                 drag.Y < 0 ? r2.Bottom - r1.Top : r2.Top - r1.Bottom
             );
 
-            var exitPoint = new Point(
-                drag.X < 0 ? r2.Left - r1.Right : r2.Right - r1.Left,
-                drag.Y < 0 ? r2.Top - r1.Bottom : r2.Bottom - r1.Top
-            );
-
             var axialEntryTime = new Vector(
                 Math.Abs(drag.X) < Epsilon ? double.MinValue : entryPoint.X / drag.X,
                 Math.Abs(drag.Y) < Epsilon ? double.MinValue : entryPoint.Y / drag.Y
             );
 
-            var axialExitTime = new Vector(
-                Math.Abs(drag.X) < Epsilon ? double.MaxValue : exitPoint.X / drag.X,
-                Math.Abs(drag.Y) < Epsilon ? double.MaxValue : exitPoint.Y / drag.Y
-            );
-
             var entryTime = Math.Max(axialEntryTime.X, axialEntryTime.Y);
-            var exitTime = Math.Min(axialExitTime.X, axialExitTime.Y);
 
-            if (entryTime > exitTime || entryTime < 0 || entryTime > 1)
+            if (entryTime < 0 || entryTime > 1)
                 return RectEdge.None;
 
             if (Math.Abs(axialEntryTime.X - axialEntryTime.Y) < Epsilon)
