@@ -61,7 +61,6 @@
   <ItemGroup>
     <Compile Include="Helpers\DrawingHelper.cs" />
     <Compile Include="Helpers\OverlapHelper.cs" />
-    <Compile Include="Helpers\ResizeHelper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>

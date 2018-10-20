@@ -392,6 +392,10 @@ namespace FreeArrangePanel.Controls
                 foreach (var selectedElement in SelectedElements)
                     SetSelectionOverlayVisibility(selectedElement, true);
 
+                // Show the resize overlay if there was only one selected element
+                if (SelectedElements.Count == 1)
+                    SetResizeHandleVisibility(SelectedElements[0], true);
+
                 element.ReleaseMouseCapture();
 
                 if (!ForwardMouseEvents) e.Handled = true;
@@ -483,6 +487,10 @@ namespace FreeArrangePanel.Controls
                         // Hide the selection overlays before starting the move
                         foreach (var selectedElement in SelectedElements)
                             SetSelectionOverlayVisibility(selectedElement, false);
+
+                        // Hide the resize overlay if there was only one selected element
+                        if (SelectedElements.Count == 1)
+                            SetResizeHandleVisibility(SelectedElements[0], false);
                     }
                 }
             }
