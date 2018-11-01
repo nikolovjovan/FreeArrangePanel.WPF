@@ -218,21 +218,20 @@ namespace FreeArrangePanel.Helpers
                     if (intersection.IsEmpty || intersection.Width < Epsilon || intersection.Height < Epsilon) continue;
 
                     // Once we have passed the broad phase, we need to test with sweep AABB.
-                    // So we get the edge where the two rects touch and adjust the limits.
+                    // So we get the normal vector of the two rects and adjust the limits.
 
-                    var collisionEdge = GetCollisionEdge(r1, r2, drag);
+                    var normal = GetNormalVector(r1, r2, drag);
 
                     // If no edge has been hit, then there was no collision.
 
-                    if (collisionEdge == Handle.None) continue;
+                    if (normal.Length <= 0) continue;
 
-                    // Since the RectEdge enum is a flag enum, we can split up the sides and correct
-                    // them individually. Therefore, this works for both corners and sides!
+                    // Otherwise, use the normal vector to adjust the limits.
 
-                    if ((collisionEdge & Handle.Left) != 0) limit.X = r2.Left - r1.Right;
-                    if ((collisionEdge & Handle.Right) != 0) limit.X = r2.Right - r1.Left;
-                    if ((collisionEdge & Handle.Top) != 0) limit.Y = r2.Top - r1.Bottom;
-                    if ((collisionEdge & Handle.Bottom) != 0) limit.Y = r2.Bottom - r1.Top;
+                    if (normal.X < 0) limit.X = r2.Left - r1.Right;
+                    if (normal.X > 0) limit.X = r2.Right - r1.Left;
+                    if (normal.Y < 0) limit.Y = r2.Top - r1.Bottom;
+                    if (normal.Y > 0) limit.Y = r2.Bottom - r1.Top;
 
                     // Again, we iteratively apply drag delta limits.
 
@@ -275,13 +274,13 @@ namespace FreeArrangePanel.Helpers
         }
 
         /// <summary>
-        ///     Calculates the collision edge/corner of the two rects with the specified drag.
+        ///     Calculates the collision normal vector of the two rects with the specified drag.
         /// </summary>
-        /// <param name="drag">The movement <see cref="Vector" /> of the first rect.</param>
         /// <param name="r1">The <see cref="Rect" /> that is being moved.</param>
         /// <param name="r2">The stationary <see cref="Rect" />.</param>
-        /// <returns>The edge/corner of the rect r2 that the rect r1 first hits/touches.</returns>
-        private static Handle GetCollisionEdge(Rect r1, Rect r2, Vector drag)
+        /// <param name="drag">The movement <see cref="Vector" /> of the first rect.</param>
+        /// <returns>The collision normal <see cref="Vector"/> of the rect r2 that the rect r1 first hits.</returns>
+        private static Vector GetNormalVector(Rect r1, Rect r2, Vector drag)
         {
             var entryPoint = new Point(
                 drag.X < 0 ? r2.Right - r1.Left : r2.Left - r1.Right,
@@ -295,15 +294,16 @@ namespace FreeArrangePanel.Helpers
 
             var entryTime = Math.Max(axialEntryTime.X, axialEntryTime.Y);
 
-            if (entryTime < 0 || entryTime > 1)
-                return Handle.None;
+            var normal = new Vector();
 
-            if (Math.Abs(axialEntryTime.X - axialEntryTime.Y) < Epsilon)
-                return (drag.X < 0 ? Handle.Right : Handle.Left) |
-                       (drag.Y < 0 ? Handle.Bottom : Handle.Top);
-            if (axialEntryTime.X > axialEntryTime.Y)
-                return drag.X < 0 ? Handle.Right : Handle.Left;
-            return drag.Y < 0 ? Handle.Bottom : Handle.Top;
+            if (entryTime < 0 || entryTime > 1) return normal;
+
+            var hitCorner = Math.Abs(axialEntryTime.X - axialEntryTime.Y) < Epsilon;
+
+            if (hitCorner || axialEntryTime.X > axialEntryTime.Y) normal.X = drag.X < 0 ? 1 : -1;
+            if (hitCorner || axialEntryTime.X < axialEntryTime.Y) normal.Y = drag.Y < 0 ? 1 : -1;
+
+            return normal;
         }
 
         #endregion
