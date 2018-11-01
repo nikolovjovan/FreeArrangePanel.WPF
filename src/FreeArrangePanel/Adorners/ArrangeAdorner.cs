@@ -15,9 +15,18 @@ namespace FreeArrangePanel.Adorners
     /// </summary>
     public enum RenderMode
     {
-        None, // Does not render the visual element
-        Inside, // Renders the visual element INSIDE AdornedElement's bounds
-        Outside // Renders the visual element OUTSIDE AdornedElement's bounds
+        /// <summary>
+        ///     Does not render the visual element.
+        /// </summary>
+        None,
+        /// <summary>
+        ///     Renders the visual element INSIDE AdornedElement's bounds.
+        /// </summary>
+        Inside,
+        /// <summary>
+        ///     Renders the visual element OUTSIDE AdornedElement's bounds.
+        /// </summary>
+        Outside
     }
 
     /// <inheritdoc />
@@ -37,10 +46,10 @@ namespace FreeArrangePanel.Adorners
             SelectionFill = null;
             SelectionStroke = new SolidColorBrush(Color.FromRgb(0x00, 0x00, 0xFF));
             SelectionStrokeThickness = 2.0;
-            ThumbFill = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
-            ThumbStroke = new SolidColorBrush(Color.FromRgb(0x00, 0x00, 0x00));
-            ThumbStrokeThickness = 1.0;
-            ThumbWidth = 10;
+            HandleFill = new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+            HandleStroke = new SolidColorBrush(Color.FromRgb(0x00, 0x00, 0x00));
+            HandleStrokeThickness = 1.0;
+            HandleSize = 10;
             mVisualChildren = new VisualCollection(this);
             mSelectionOverlay = new SelectionOverlay(this);
             mVisualChildren.Add(mSelectionOverlay);
@@ -118,55 +127,55 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets a <see cref="Brush" /> that paints the interior area of the resize handle thumb.
+        ///     Gets or sets a <see cref="Brush" /> that paints the interior area of the resize handle.
         /// </summary>
-        public Brush ThumbFill
+        public Brush HandleFill
         {
-            get => mThumbFill;
+            get => mHandleFill;
             set
             {
-                mThumbFill = value;
+                mHandleFill = value;
                 AdornerLayer.GetAdornerLayer(AdornedElement)?.Update();
             }
         }
 
         /// <summary>
-        ///     Gets or sets a <see cref="Brush" /> that specifies how the resize handle thumb outline is painted.
+        ///     Gets or sets a <see cref="Brush" /> that specifies how the resize handle outline is painted.
         /// </summary>
-        public Brush ThumbStroke
+        public Brush HandleStroke
         {
-            get => mThumbStroke;
+            get => mHandleStroke;
             set
             {
-                mThumbStroke = value;
+                mHandleStroke = value;
                 AdornerLayer.GetAdornerLayer(AdornedElement)?.Update();
             }
         }
 
         /// <summary>
-        ///     Gets or sets a <see cref="double" /> that specifies the width of the selection rectangle outline.
+        ///     Gets or sets a <see cref="double" /> that specifies the width of the resize handle outline.
         /// </summary>
         [TypeConverter(typeof(LengthConverter))]
-        public double ThumbStrokeThickness
+        public double HandleStrokeThickness
         {
-            get => mThumbStrokeThickness;
+            get => mHandleStrokeThickness;
             set
             {
-                mThumbStrokeThickness = value > 0 ? value : 0;
+                mHandleStrokeThickness = value > 0 ? value : 0;
                 AdornerLayer.GetAdornerLayer(AdornedElement)?.Update();
             }
         }
 
         /// <summary>
-        ///     Gets or sets a <see cref="double" /> that specifies the thumb width used for rendering resize handles.
+        ///     Gets or sets a <see cref="double" /> that specifies the resize handle size.
         /// </summary>
         [TypeConverter(typeof(LengthConverter))]
-        public double ThumbWidth
+        public double HandleSize
         {
-            get => mThumbWidth;
+            get => mHandleSize;
             set
             {
-                mThumbWidth = value > 0 ? value : 0;
+                mHandleSize = value > 0 ? value : 0;
                 AdornerLayer.GetAdornerLayer(AdornedElement)?.Update();
             }
         }
@@ -200,34 +209,34 @@ namespace FreeArrangePanel.Adorners
             var scaleFactor =
                 1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
 
-            var thumbWidth = ThumbWidth * scaleFactor;
+            var handleSize = HandleSize * scaleFactor;
 
             if (ResizeHandleRenderMode == RenderMode.Inside)
             {
-                mHandles.Left.Arrange(new Rect(0, thumbWidth, thumbWidth, desiredHeight - 2 * thumbWidth));
-                mHandles.Right.Arrange(new Rect(desiredWidth - thumbWidth, thumbWidth, thumbWidth,
-                    desiredHeight - 2 * thumbWidth));
-                mHandles.Top.Arrange(new Rect(thumbWidth, 0, desiredWidth - 2 * thumbWidth, thumbWidth));
-                mHandles.Bottom.Arrange(new Rect(thumbWidth, desiredHeight - thumbWidth, desiredWidth - 2 * thumbWidth,
-                    thumbWidth));
-                mHandles.TopLeft.Arrange(new Rect(0, 0, thumbWidth, thumbWidth));
-                mHandles.TopRight.Arrange(new Rect(desiredWidth - thumbWidth, 0, thumbWidth, thumbWidth));
-                mHandles.BottomLeft.Arrange(new Rect(0, desiredHeight - thumbWidth, thumbWidth, thumbWidth));
-                mHandles.BottomRight.Arrange(new Rect(desiredWidth - thumbWidth, desiredHeight - thumbWidth, thumbWidth,
-                    thumbWidth));
+                mHandles.Left.Arrange(new Rect(0, handleSize, handleSize, desiredHeight - 2 * handleSize));
+                mHandles.Right.Arrange(new Rect(desiredWidth - handleSize, handleSize, handleSize,
+                    desiredHeight - 2 * handleSize));
+                mHandles.Top.Arrange(new Rect(handleSize, 0, desiredWidth - 2 * handleSize, handleSize));
+                mHandles.Bottom.Arrange(new Rect(handleSize, desiredHeight - handleSize, desiredWidth - 2 * handleSize,
+                    handleSize));
+                mHandles.TopLeft.Arrange(new Rect(0, 0, handleSize, handleSize));
+                mHandles.TopRight.Arrange(new Rect(desiredWidth - handleSize, 0, handleSize, handleSize));
+                mHandles.BottomLeft.Arrange(new Rect(0, desiredHeight - handleSize, handleSize, handleSize));
+                mHandles.BottomRight.Arrange(new Rect(desiredWidth - handleSize, desiredHeight - handleSize, handleSize,
+                    handleSize));
             }
             else
             {
-                mHandles.Left.Arrange(new Rect(-thumbWidth, (desiredHeight - thumbWidth) / 2, thumbWidth, thumbWidth));
-                mHandles.Right.Arrange(new Rect(desiredWidth, (desiredHeight - thumbWidth) / 2, thumbWidth,
-                    thumbWidth));
-                mHandles.Top.Arrange(new Rect((desiredWidth - thumbWidth) / 2, -thumbWidth, thumbWidth, thumbWidth));
+                mHandles.Left.Arrange(new Rect(-handleSize, (desiredHeight - handleSize) / 2, handleSize, handleSize));
+                mHandles.Right.Arrange(new Rect(desiredWidth, (desiredHeight - handleSize) / 2, handleSize,
+                    handleSize));
+                mHandles.Top.Arrange(new Rect((desiredWidth - handleSize) / 2, -handleSize, handleSize, handleSize));
                 mHandles.Bottom.Arrange(
-                    new Rect((desiredWidth - thumbWidth) / 2, desiredHeight, thumbWidth, thumbWidth));
-                mHandles.TopLeft.Arrange(new Rect(-thumbWidth, -thumbWidth, thumbWidth, thumbWidth));
-                mHandles.TopRight.Arrange(new Rect(desiredWidth, -thumbWidth, thumbWidth, thumbWidth));
-                mHandles.BottomLeft.Arrange(new Rect(-thumbWidth, desiredHeight, thumbWidth, thumbWidth));
-                mHandles.BottomRight.Arrange(new Rect(desiredWidth, desiredHeight, thumbWidth, thumbWidth));
+                    new Rect((desiredWidth - handleSize) / 2, desiredHeight, handleSize, handleSize));
+                mHandles.TopLeft.Arrange(new Rect(-handleSize, -handleSize, handleSize, handleSize));
+                mHandles.TopRight.Arrange(new Rect(desiredWidth, -handleSize, handleSize, handleSize));
+                mHandles.BottomLeft.Arrange(new Rect(-handleSize, desiredHeight, handleSize, handleSize));
+                mHandles.BottomRight.Arrange(new Rect(desiredWidth, desiredHeight, handleSize, handleSize));
             }
 
             return finalSize;
@@ -252,8 +261,6 @@ namespace FreeArrangePanel.Adorners
         /// </summary>
         private class SelectionOverlay : UIElement
         {
-            private readonly ArrangeAdorner mParent;
-
             public SelectionOverlay(ArrangeAdorner parent)
             {
                 IsHitTestVisible = false;
@@ -262,12 +269,34 @@ namespace FreeArrangePanel.Adorners
 
             protected override void OnRender(DrawingContext drawingContext)
             {
-                mParent.RenderSelectionOverlay(drawingContext);
+                var scaleFactor =
+                    1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
+
+                if (mParent.SelectionRenderMode == RenderMode.None) return;
+
+                var strokeThickness = mParent.HandleStroke != null ? mParent.SelectionStrokeThickness * scaleFactor : 0;
+
+                var pen = strokeThickness > 0 ? new Pen(mParent.SelectionStroke, strokeThickness) : null;
+
+                Rect rect;
+                if (mParent.SelectionRenderMode == RenderMode.Inside)
+                    rect = new Rect(strokeThickness / 2, strokeThickness / 2,
+                        mParent.AdornedElement.RenderSize.Width - strokeThickness,
+                        mParent.AdornedElement.RenderSize.Height - strokeThickness);
+                else
+                    rect = new Rect(-strokeThickness / 2, -strokeThickness / 2,
+                        mParent.AdornedElement.RenderSize.Width + strokeThickness,
+                        mParent.AdornedElement.RenderSize.Height + strokeThickness);
+
+                DrawingHelper.DrawRectangle(drawingContext, mParent.SelectionFill, pen, rect);
             }
+
+            private readonly ArrangeAdorner mParent;
         }
 
+        /// <inheritdoc />
         /// <summary>
-        ///     A <see cref="Thumb" /> with custom rendering used as a resize handle.
+        ///     A <see cref="T:System.Windows.Controls.Primitives.Thumb" /> with custom rendering used as a resize handle.
         /// </summary>
         private class ResizeHandle : Thumb
         {
@@ -286,19 +315,19 @@ namespace FreeArrangePanel.Adorners
 
                 if (ActualWidth < double.Epsilon || ActualHeight < double.Epsilon) return;
 
-                var strokeThickness = mParent.ThumbStroke != null ? mParent.ThumbStrokeThickness * scaleFactor : 0;
+                var strokeThickness = mParent.HandleStroke != null ? mParent.HandleStrokeThickness * scaleFactor : 0;
 
-                var pen = strokeThickness > 0 ? new Pen(mParent.ThumbStroke, strokeThickness) : null;
+                var pen = strokeThickness > 0 ? new Pen(mParent.HandleStroke, strokeThickness) : null;
 
                 var rect = new Rect(strokeThickness / 2, strokeThickness / 2,
                     ActualWidth - strokeThickness, ActualHeight - strokeThickness);
 
-                DrawingHelper.DrawRectangle(drawingContext, mParent.ThumbFill, pen, rect);
+                DrawingHelper.DrawRectangle(drawingContext, mParent.HandleFill, pen, rect);
             }
         }
 
         /// <summary>
-        ///     A custom struct used as a container resize handle thumbs.
+        ///     A custom struct used as a container for resize handles.
         /// </summary>
         private struct ResizeHandles
         {
@@ -317,12 +346,22 @@ namespace FreeArrangePanel.Adorners
         #region Fields
 
         private readonly VisualCollection mVisualChildren;
+        /// <remarks>
+        ///     The reason we are using a custom UIElement to render the overlay is so we can have hit test visibility set to true
+        ///     on
+        ///     the adorner to allow resize handles to register events, while still passing events through the selection overlay.
+        /// </remarks>
         private readonly SelectionOverlay mSelectionOverlay;
+        /// <remarks>
+        ///     The reason we are using a custom UIElement to render the overlay is so we can have hit test visibility set to true
+        ///     on
+        ///     the adorner to allow resize handles to register events, while still passing events through the selection overlay.
+        /// </remarks>
         private ResizeHandles mHandles;
 
         private RenderMode mSelectionRenderMode, mResizeHandleRenderMode;
-        private Brush mSelectionFill, mSelectionStroke, mThumbFill, mThumbStroke;
-        private double mSelectionStrokeThickness, mThumbStrokeThickness, mThumbWidth;
+        private Brush mSelectionFill, mSelectionStroke, mHandleFill, mHandleStroke;
+        private double mSelectionStrokeThickness, mHandleStrokeThickness, mHandleSize;
 
         #endregion
 
@@ -335,21 +374,7 @@ namespace FreeArrangePanel.Adorners
         /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
         private void HandleLeft(object sender, DragDeltaEventArgs args)
         {
-            if (!(AdornedElement is FrameworkElement adornedElement)) return;
-
-            var scaleFactor =
-                1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-
-            var thumbWidth = ThumbWidth * scaleFactor;
-
-            var drag = new Vector(args.HorizontalChange, 0);
-
-            if (drag.X < 0) AdjustDragDelta(ref drag, RectEdge.Left);
-
-            var newWidth = CalculateNewWidth(-drag.X, thumbWidth);
-
-            Canvas.SetLeft(adornedElement, Canvas.GetLeft(adornedElement) - (newWidth - adornedElement.Width));
-            adornedElement.Width = newWidth;
+            Resize(DraggedHandle.Left, new Vector(args.HorizontalChange, 0));
         }
 
         /// <summary>
@@ -359,20 +384,7 @@ namespace FreeArrangePanel.Adorners
         /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
         private void HandleRight(object sender, DragDeltaEventArgs args)
         {
-            if (!(AdornedElement is FrameworkElement adornedElement)) return;
-
-            var scaleFactor =
-                1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-
-            var thumbWidth = ThumbWidth * scaleFactor;
-
-            var drag = new Vector(args.HorizontalChange, 0);
-
-            if (drag.X > 0) AdjustDragDelta(ref drag, RectEdge.Right);
-
-            var newWidth = CalculateNewWidth(drag.X, thumbWidth);
-
-            adornedElement.Width = newWidth;
+            Resize(DraggedHandle.Right, new Vector(args.HorizontalChange, 0));
         }
 
         /// <summary>
@@ -382,21 +394,7 @@ namespace FreeArrangePanel.Adorners
         /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
         private void HandleTop(object sender, DragDeltaEventArgs args)
         {
-            if (!(AdornedElement is FrameworkElement adornedElement)) return;
-
-            var scaleFactor =
-                1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-
-            var thumbWidth = ThumbWidth * scaleFactor;
-
-            var drag = new Vector(0, args.VerticalChange);
-
-            if (drag.Y < 0) AdjustDragDelta(ref drag, RectEdge.Top);
-
-            var newHeight = CalculateNewHeight(-drag.Y, thumbWidth);
-
-            Canvas.SetTop(adornedElement, Canvas.GetTop(adornedElement) - (newHeight - adornedElement.Height));
-            adornedElement.Height = newHeight;
+            Resize(DraggedHandle.Top, new Vector(0, args.VerticalChange));
         }
 
         /// <summary>
@@ -406,20 +404,7 @@ namespace FreeArrangePanel.Adorners
         /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
         private void HandleBottom(object sender, DragDeltaEventArgs args)
         {
-            if (!(AdornedElement is FrameworkElement adornedElement)) return;
-
-            var scaleFactor =
-                1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-
-            var thumbWidth = ThumbWidth * scaleFactor;
-
-            var drag = new Vector(0, args.VerticalChange);
-
-            if (drag.Y > 0) AdjustDragDelta(ref drag, RectEdge.Bottom);
-
-            var newHeight = CalculateNewHeight(drag.Y, thumbWidth);
-
-            adornedElement.Height = newHeight;
+            Resize(DraggedHandle.Bottom, new Vector(0, args.VerticalChange));
         }
 
         /// <summary>
@@ -429,50 +414,7 @@ namespace FreeArrangePanel.Adorners
         /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
         private void HandleTopLeft(object sender, DragDeltaEventArgs args)
         {
-            if (!(AdornedElement is FrameworkElement adornedElement)) return;
-
-            var scaleFactor =
-                1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-
-            var thumbWidth = ThumbWidth * scaleFactor;
-
-            var newWidth = CalculateNewWidth(-args.HorizontalChange, thumbWidth);
-            var newHeight = CalculateNewHeight(-args.VerticalChange, thumbWidth);
-
-            var drag = new Vector(adornedElement.Width - newWidth, adornedElement.Height - newHeight);
-
-            if (drag.X > 0)
-            {
-                Canvas.SetLeft(adornedElement, Canvas.GetLeft(adornedElement) - (newWidth - adornedElement.Width));
-                adornedElement.Width = newWidth;
-                drag.X = 0;
-            }
-
-            if (drag.Y > 0)
-            {
-                Canvas.SetTop(adornedElement, Canvas.GetTop(adornedElement) - (newHeight - adornedElement.Height));
-                adornedElement.Height = newHeight;
-                drag.Y = 0;
-            }
-
-            if (drag.X < 0 || drag.Y < 0)
-            {
-                AdjustDragDelta(ref drag, (drag.X < 0 ? RectEdge.Left : 0) | (drag.Y < 0 ? RectEdge.Top : 0));
-
-                if (drag.X < 0)
-                {
-                    newWidth = CalculateNewWidth(-drag.X, thumbWidth);
-                    Canvas.SetLeft(adornedElement, Canvas.GetLeft(adornedElement) - (newWidth - adornedElement.Width));
-                    adornedElement.Width = newWidth;
-                }
-
-                if (drag.Y < 0)
-                {
-                    newHeight = CalculateNewHeight(-drag.Y, thumbWidth);
-                    Canvas.SetTop(adornedElement, Canvas.GetTop(adornedElement) - (newHeight - adornedElement.Height));
-                    adornedElement.Height = newHeight;
-                }
-            }
+            Resize(DraggedHandle.Top | DraggedHandle.Left, new Vector(args.HorizontalChange, args.VerticalChange));
         }
 
         /// <summary>
@@ -482,48 +424,7 @@ namespace FreeArrangePanel.Adorners
         /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
         private void HandleTopRight(object sender, DragDeltaEventArgs args)
         {
-            if (!(AdornedElement is FrameworkElement adornedElement)) return;
-
-            var scaleFactor =
-                1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-
-            var thumbWidth = ThumbWidth * scaleFactor;
-
-            var newWidth = CalculateNewWidth(args.HorizontalChange, thumbWidth);
-            var newHeight = CalculateNewHeight(-args.VerticalChange, thumbWidth);
-
-            var drag = new Vector(newWidth - adornedElement.Width, adornedElement.Height - newHeight);
-
-            if (drag.X < 0)
-            {
-                adornedElement.Width = newWidth;
-                drag.X = 0;
-            }
-
-            if (drag.Y > 0)
-            {
-                Canvas.SetTop(adornedElement, Canvas.GetTop(adornedElement) - (newHeight - adornedElement.Height));
-                adornedElement.Height = newHeight;
-                drag.Y = 0;
-            }
-
-            if (drag.X > 0 || drag.Y < 0)
-            {
-                AdjustDragDelta(ref drag, (drag.X > 0 ? RectEdge.Right : 0) | (drag.Y < 0 ? RectEdge.Top : 0));
-
-                if (drag.X > 0)
-                {
-                    newWidth = CalculateNewWidth(drag.X, thumbWidth);
-                    adornedElement.Width = newWidth;
-                }
-
-                if (drag.Y < 0)
-                {
-                    newHeight = CalculateNewHeight(-drag.Y, thumbWidth);
-                    Canvas.SetTop(adornedElement, Canvas.GetTop(adornedElement) - (newHeight - adornedElement.Height));
-                    adornedElement.Height = newHeight;
-                }
-            }
+            Resize(DraggedHandle.Top | DraggedHandle.Right, new Vector(args.HorizontalChange, args.VerticalChange));
         }
 
         /// <summary>
@@ -533,48 +434,7 @@ namespace FreeArrangePanel.Adorners
         /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
         private void HandleBottomLeft(object sender, DragDeltaEventArgs args)
         {
-            if (!(AdornedElement is FrameworkElement adornedElement)) return;
-
-            var scaleFactor =
-                1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-
-            var thumbWidth = ThumbWidth * scaleFactor;
-
-            var newWidth = CalculateNewWidth(-args.HorizontalChange, thumbWidth);
-            var newHeight = CalculateNewHeight(args.VerticalChange, thumbWidth);
-
-            var drag = new Vector(adornedElement.Width - newWidth, newHeight - adornedElement.Height);
-
-            if (drag.X > 0)
-            {
-                Canvas.SetLeft(adornedElement, Canvas.GetLeft(adornedElement) - (newWidth - adornedElement.Width));
-                adornedElement.Width = newWidth;
-                drag.X = 0;
-            }
-
-            if (drag.Y < 0)
-            {
-                adornedElement.Height = newHeight;
-                drag.Y = 0;
-            }
-
-            if (drag.X < 0 || drag.Y > 0)
-            {
-                AdjustDragDelta(ref drag, (drag.X < 0 ? RectEdge.Left : 0) | (drag.Y > 0 ? RectEdge.Bottom : 0));
-
-                if (drag.X < 0)
-                {
-                    newWidth = CalculateNewWidth(-drag.X, thumbWidth);
-                    Canvas.SetLeft(adornedElement, Canvas.GetLeft(adornedElement) - (newWidth - adornedElement.Width));
-                    adornedElement.Width = newWidth;
-                }
-
-                if (drag.Y > 0)
-                {
-                    newHeight = CalculateNewHeight(drag.Y, thumbWidth);
-                    adornedElement.Height = newHeight;
-                }
-            }
+            Resize(DraggedHandle.Bottom | DraggedHandle.Left, new Vector(args.HorizontalChange, args.VerticalChange));
         }
 
         /// <summary>
@@ -584,46 +444,7 @@ namespace FreeArrangePanel.Adorners
         /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
         private void HandleBottomRight(object sender, DragDeltaEventArgs args)
         {
-            if (!(AdornedElement is FrameworkElement adornedElement)) return;
-
-            var scaleFactor =
-                1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-
-            var thumbWidth = ThumbWidth * scaleFactor;
-
-            var newWidth = CalculateNewWidth(args.HorizontalChange, thumbWidth);
-            var newHeight = CalculateNewHeight(args.VerticalChange, thumbWidth);
-
-            var drag = new Vector(newWidth - adornedElement.Width, newHeight - adornedElement.Height);
-
-            if (drag.X < 0)
-            {
-                adornedElement.Width = newWidth;
-                drag.X = 0;
-            }
-
-            if (drag.Y < 0)
-            {
-                adornedElement.Height = newHeight;
-                drag.Y = 0;
-            }
-
-            if (drag.X > 0 || drag.Y > 0)
-            {
-                AdjustDragDelta(ref drag, (drag.X > 0 ? RectEdge.Right : 0) | (drag.Y > 0 ? RectEdge.Bottom : 0));
-
-                if (drag.X > 0)
-                {
-                    newWidth = CalculateNewWidth(drag.X, thumbWidth);
-                    adornedElement.Width = newWidth;
-                }
-
-                if (drag.Y > 0)
-                {
-                    newHeight = CalculateNewHeight(drag.Y, thumbWidth);
-                    adornedElement.Height = newHeight;
-                }
-            }
+            Resize(DraggedHandle.Bottom | DraggedHandle.Right, new Vector(args.HorizontalChange, args.VerticalChange));
         }
 
         #endregion
@@ -631,11 +452,11 @@ namespace FreeArrangePanel.Adorners
         #region Helper Methods
 
         /// <summary>
-        ///     Initializes resize handle thumb and adds it to the visual tree.
+        ///     Initializes resize handle and adds it to the visual tree.
         /// </summary>
         /// <param name="resizeHandle">A <see cref="ResizeHandle" /> that needs to be initialized.</param>
         /// <param name="cursor">A <see cref="Cursor" /> that specifies the mouse cursor that will be shown on mouse hover.</param>
-        /// <param name="visualCollection">A <see cref="VisualCollection" /> this thumb needs to be added to.</param>
+        /// <param name="visualCollection">A <see cref="VisualCollection" /> this resize handle needs to be added to.</param>
         private void InitializeResizeHandle(ref ResizeHandle resizeHandle, Cursor cursor,
             VisualCollection visualCollection)
         {
@@ -669,75 +490,78 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Renders the selection overlay on the <see cref="mSelectionOverlay" /> element.
+        ///     Resizes the <see cref="Adorner.AdornedElement" /> according to the specified handle and drag.
         /// </summary>
-        /// <param name="drawingContext">A <see cref="DrawingContext" /> object from the <see cref="mSelectionOverlay" /> element.</param>
-        /// <remarks>
-        ///     The reason we are using a custom UIElement to render the overlay is so we can have hit test visibility set to
-        ///     true on the adorner to allow thumbs to register events, while still passing events through the selection overlay.
-        /// </remarks>
-        private void RenderSelectionOverlay(DrawingContext drawingContext)
-        {
-            var scaleFactor =
-                1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-
-            if (SelectionRenderMode == RenderMode.None) return;
-
-            var strokeThickness = ThumbStroke != null ? SelectionStrokeThickness * scaleFactor : 0;
-
-            var pen = strokeThickness > 0 ? new Pen(SelectionStroke, strokeThickness) : null;
-
-            Rect rect;
-            if (SelectionRenderMode == RenderMode.Inside)
-                rect = new Rect(strokeThickness / 2, strokeThickness / 2,
-                    AdornedElement.RenderSize.Width - strokeThickness,
-                    AdornedElement.RenderSize.Height - strokeThickness);
-            else
-                rect = new Rect(-strokeThickness / 2, -strokeThickness / 2,
-                    AdornedElement.RenderSize.Width + strokeThickness,
-                    AdornedElement.RenderSize.Height + strokeThickness);
-
-            DrawingHelper.DrawRectangle(drawingContext, SelectionFill, pen, rect);
-        }
-
-        /// <summary>
-        ///     Calls <see cref="OverlapHelper.AdjustDragDelta" /> with the specified params.
-        /// </summary>
-        /// <param name="drag">The drag <see cref="Vector" /> that needs adjusting.</param>
-        /// <param name="edge">If moving <see cref="RectEdge.None" />, otherwise specifies a rect edge for resizing.</param>
-        private void AdjustDragDelta(ref Vector drag, RectEdge edge)
+        /// <param name="handle">A <see cref="DraggedHandle" /> that specifies resize side/corner.</param>
+        /// <param name="drag">The drag <see cref="Vector" /> that specifies mouse drag of the specified resize handle.</param>
+        private void Resize(DraggedHandle handle, Vector drag)
         {
             if (!(AdornedElement is FrameworkElement adornedElement)) return;
             if (!(adornedElement.Parent is Controls.FreeArrangePanel panel)) return;
+
+            var scaleFactor =
+                1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
+            var minSize = (ResizeHandleRenderMode == RenderMode.Inside ? 3 : 1) * HandleSize * scaleFactor;
+
+            var oldWidth = adornedElement.Width;
+            var oldHeight = adornedElement.Height;
+
+            var newWidth = handle.HasFlag(DraggedHandle.Left) || handle.HasFlag(DraggedHandle.Right)
+                ? Math.Max(oldWidth + (handle.HasFlag(DraggedHandle.Left) ? -drag.X : drag.X),
+                    Math.Max(adornedElement.MinWidth, minSize))
+                : oldWidth;
+            var newHeight = handle.HasFlag(DraggedHandle.Top) || handle.HasFlag(DraggedHandle.Bottom)
+                ? Math.Max(oldHeight + (handle.HasFlag(DraggedHandle.Top) ? -drag.Y : drag.Y),
+                    Math.Max(adornedElement.MinHeight, minSize))
+                : oldHeight;
+
+            var diff = new Vector(newWidth - oldWidth, newHeight - oldHeight);
+
+            if (diff.X <= -OverlapHelper.Epsilon)
+            {
+                if (handle.HasFlag(DraggedHandle.Left))
+                    Canvas.SetLeft(adornedElement, Canvas.GetLeft(adornedElement) - diff.X);
+                adornedElement.Width = newWidth;
+            }
+
+            if (diff.Y <= -OverlapHelper.Epsilon)
+            {
+                if (handle.HasFlag(DraggedHandle.Top))
+                    Canvas.SetTop(adornedElement, Canvas.GetTop(adornedElement) - diff.Y);
+                adornedElement.Height = newHeight;
+            }
+
+            if (diff.X < OverlapHelper.Epsilon)
+            {
+                handle &= DraggedHandle.Top | DraggedHandle.Bottom;
+                drag.X = 0;
+            }
+
+            if (diff.Y < OverlapHelper.Epsilon)
+            {
+                handle &= DraggedHandle.Left | DraggedHandle.Right;
+                drag.Y = 0;
+            }
+
+            if (handle == DraggedHandle.None) return;
+
             panel.GenerateElementRects(out var selectedRects, out var staticRects);
-            OverlapHelper.AdjustDragDelta(ref drag, edge, selectedRects, staticRects,
+            OverlapHelper.AdjustDragDelta(ref drag, handle, selectedRects, staticRects,
                 panel.LimitMovementToPanel ? panel.RenderSize : Size.Empty);
-        }
 
-        /// <summary>
-        ///     Calculates new width of the <see cref="Adorner.AdornedElement" />.
-        /// </summary>
-        /// <param name="change">A <see cref="double" /> specifying the increase/decrease in width.</param>
-        /// <param name="thumbWidth">A <see cref="double" /> specifying the thumb width.</param>
-        /// <returns>The new width of the <see cref="Adorner.AdornedElement" />.</returns>
-        private double CalculateNewWidth(double change, double thumbWidth)
-        {
-            if (!(AdornedElement is FrameworkElement adornedElement)) return 0;
-            return Math.Max(adornedElement.Width + change, Math.Max(adornedElement.MinWidth,
-                (ResizeHandleRenderMode == RenderMode.Inside ? 3 : 1) * thumbWidth));
-        }
+            if (Math.Abs(drag.X) > OverlapHelper.Epsilon)
+            {
+                if (handle.HasFlag(DraggedHandle.Left))
+                    Canvas.SetLeft(adornedElement, Canvas.GetLeft(adornedElement) + drag.X);
+                adornedElement.Width += handle.HasFlag(DraggedHandle.Left) ? -drag.X : drag.X;
+            }
 
-        /// <summary>
-        ///     Calculates new height of the <see cref="Adorner.AdornedElement" />.
-        /// </summary>
-        /// <param name="change">A <see cref="double" /> specifying the increase/decrease in height.</param>
-        /// <param name="thumbHeight">A <see cref="double" /> specifying the thumb height.</param>
-        /// <returns>The new height of the <see cref="Adorner.AdornedElement" />.</returns>
-        private double CalculateNewHeight(double change, double thumbHeight)
-        {
-            if (!(AdornedElement is FrameworkElement adornedElement)) return 0;
-            return Math.Max(adornedElement.Height + change, Math.Max(adornedElement.MinHeight,
-                (ResizeHandleRenderMode == RenderMode.Inside ? 3 : 1) * thumbHeight));
+            if (Math.Abs(drag.Y) > OverlapHelper.Epsilon)
+            {
+                if (handle.HasFlag(DraggedHandle.Top))
+                    Canvas.SetTop(adornedElement, Canvas.GetTop(adornedElement) + drag.Y);
+                adornedElement.Height += handle.HasFlag(DraggedHandle.Top) ? -drag.Y : drag.Y;
+            }
         }
 
         #endregion

@@ -469,7 +469,7 @@ namespace FreeArrangePanel.Controls
                 if (mMovingElements && (Math.Abs(dragDelta.X) > 0.01 || Math.Abs(dragDelta.Y) > 0.01))
                 {
                     GenerateElementRects(out var selectedRects, out var staticRects);
-                    OverlapHelper.AdjustDragDelta(ref dragDelta, RectEdge.None, selectedRects, staticRects,
+                    OverlapHelper.AdjustDragDelta(ref dragDelta, DraggedHandle.None, selectedRects, staticRects,
                         LimitMovementToPanel ? RenderSize : Size.Empty);
                     if (Math.Abs(dragDelta.X) > 0.01 || Math.Abs(dragDelta.Y) > 0.01)
                         foreach (var element in SelectedElements)

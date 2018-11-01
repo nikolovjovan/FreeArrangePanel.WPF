@@ -5,16 +5,47 @@ using System.Windows;
 namespace FreeArrangePanel.Helpers
 {
     /// <summary>
-    ///     Specifies the side of a rectangle.
+    ///     Specifies the resize handle that is being dragged or <see cref="None"/> if the element is being moved.
     /// </summary>
     [Flags]
-    internal enum RectEdge
+    internal enum DraggedHandle
     {
+        /// <summary>
+        ///     The element is being moved.
+        /// </summary>
         None = 0x0,
+        /// <summary>
+        ///     The element is being resized from the left.
+        /// </summary>
         Left = 0x1,
+        /// <summary>
+        ///     The element is being resized from the right.
+        /// </summary>
         Right = 0x2,
+        /// <summary>
+        ///     The element is being resized from the top.
+        /// </summary>
         Top = 0x4,
-        Bottom = 0x8
+        /// <summary>
+        ///     The element is being resized from the bottom.
+        /// </summary>
+        Bottom = 0x8,
+        /// <summary>
+        ///     The element is being resized from the top left.
+        /// </summary>
+        TopLeft = Top | Left,
+        /// <summary>
+        ///     The element is being resized from the top right.
+        /// </summary>
+        TopRight = Top | Right,
+        /// <summary>
+        ///     The element is being resized from the bottom left.
+        /// </summary>
+        BottomLeft = Bottom | Left,
+        /// <summary>
+        ///     The element is being resized from the bottom right.
+        /// </summary>
+        BottomRight = Bottom | Right
     }
 
     /// <summary>
@@ -28,11 +59,11 @@ namespace FreeArrangePanel.Helpers
         ///     Adjusts the drag delta <see cref="Vector" /> to prevent overlap and movement outside the panel.
         /// </summary>
         /// <param name="drag">The drag <see cref="Vector" /> that needs adjusting.</param>
-        /// <param name="edge">If moving <see cref="RectEdge.None" />, otherwise specifies a rect edge for resizing.</param>
+        /// <param name="handle">If moving <see cref="DraggedHandle.None" />, otherwise specifies a rect handle for resizing.</param>
         /// <param name="selectedRects">A <see cref="IList{Rect}" /> of selected elements rects.</param>
         /// <param name="staticRects">A <see cref="IList{Rect}" /> of non selected static elements rects.</param>
         /// <param name="bounds">If the elements need to be limited to panel a non empty <see cref="Size" />.</param>
-        public static void AdjustDragDelta(ref Vector drag, RectEdge edge,
+        public static void AdjustDragDelta(ref Vector drag, DraggedHandle handle,
             IList<Rect> selectedRects, IList<Rect> staticRects, Size bounds)
         {
             if (selectedRects == null || selectedRects.Count == 0) return;
@@ -65,7 +96,7 @@ namespace FreeArrangePanel.Helpers
 
                 foreach (var r2 in staticRects)
                 {
-                    var broadRect = GetBroadRect(r1, drag, edge);
+                    var broadRect = GetBroadRect(r1, drag, handle);
 
                     var intersection = Rect.Intersect(r2, broadRect);
 
@@ -83,15 +114,15 @@ namespace FreeArrangePanel.Helpers
 
                     // If no edge has been hit, then there was no collision.
 
-                    if (collisionEdge == RectEdge.None) continue;
+                    if (collisionEdge == DraggedHandle.None) continue;
 
                     // Since the RectEdge enum is a flag enum, we can split up the sides and correct
                     // them individually. Therefore, this works for both corners and sides!
 
-                    if ((collisionEdge & RectEdge.Left) != 0) limit.X = r2.Left - r1.Right;
-                    if ((collisionEdge & RectEdge.Right) != 0) limit.X = r2.Right - r1.Left;
-                    if ((collisionEdge & RectEdge.Top) != 0) limit.Y = r2.Top - r1.Bottom;
-                    if ((collisionEdge & RectEdge.Bottom) != 0) limit.Y = r2.Bottom - r1.Top;
+                    if ((collisionEdge & DraggedHandle.Left) != 0) limit.X = r2.Left - r1.Right;
+                    if ((collisionEdge & DraggedHandle.Right) != 0) limit.X = r2.Right - r1.Left;
+                    if ((collisionEdge & DraggedHandle.Top) != 0) limit.Y = r2.Top - r1.Bottom;
+                    if ((collisionEdge & DraggedHandle.Bottom) != 0) limit.Y = r2.Bottom - r1.Top;
 
                     // Again, we iteratively apply drag delta limits.
 
@@ -106,29 +137,29 @@ namespace FreeArrangePanel.Helpers
         /// </summary>
         /// <param name="rect">The original <see cref="Rect" /> before editing.</param>
         /// <param name="drag">The drag <see cref="Vector" /> that needs adjusting.</param>
-        /// <param name="edge">If moving <see cref="RectEdge.None" />, otherwise specifies a rect edge for resizing.</param>
+        /// <param name="handle">If moving <see cref="DraggedHandle.None" />, otherwise specifies a rect handle for resizing.</param>
         /// <returns>The broad phase testing <see cref="Rect" />.</returns>
-        public static Rect GetBroadRect(Rect rect, Vector drag, RectEdge edge)
+        public static Rect GetBroadRect(Rect rect, Vector drag, DraggedHandle handle)
         {
-            if (edge == RectEdge.None)
+            if (handle == DraggedHandle.None)
             {
                 if (drag.X < 0) rect.X += drag.X;
                 if (drag.Y < 0) rect.Y += drag.Y;
                 rect.Width += Math.Abs(drag.X);
                 rect.Height += Math.Abs(drag.Y);
             }
-            if ((edge & RectEdge.Left) != 0)
+            if ((handle & DraggedHandle.Left) != 0)
             {
                 rect.X += drag.X;
                 rect.Width -= drag.X;
             }
-            if ((edge & RectEdge.Top) != 0)
+            if ((handle & DraggedHandle.Top) != 0)
             {
                 rect.Y += drag.Y;
                 rect.Height -= drag.Y;
             }
-            if ((edge & RectEdge.Right) != 0) rect.Width += drag.X;
-            if ((edge & RectEdge.Bottom) != 0) rect.Height += drag.Y;
+            if ((handle & DraggedHandle.Right) != 0) rect.Width += drag.X;
+            if ((handle & DraggedHandle.Bottom) != 0) rect.Height += drag.Y;
 
             return rect;
         }
@@ -140,7 +171,7 @@ namespace FreeArrangePanel.Helpers
         /// <param name="r1">The <see cref="Rect" /> that is being moved.</param>
         /// <param name="r2">The stationary <see cref="Rect" />.</param>
         /// <returns>The edge/corner of the rect r2 that the rect r1 first hits/touches.</returns>
-        public static RectEdge GetCollisionEdge(Rect r1, Rect r2, Vector drag)
+        public static DraggedHandle GetCollisionEdge(Rect r1, Rect r2, Vector drag)
         {
             var entryPoint = new Point(
                 drag.X < 0 ? r2.Right - r1.Left : r2.Left - r1.Right,
@@ -155,14 +186,14 @@ namespace FreeArrangePanel.Helpers
             var entryTime = Math.Max(axialEntryTime.X, axialEntryTime.Y);
 
             if (entryTime < 0 || entryTime > 1)
-                return RectEdge.None;
+                return DraggedHandle.None;
 
             if (Math.Abs(axialEntryTime.X - axialEntryTime.Y) < Epsilon)
-                return (drag.X < 0 ? RectEdge.Right : RectEdge.Left) |
-                       (drag.Y < 0 ? RectEdge.Bottom : RectEdge.Top);
+                return (drag.X < 0 ? DraggedHandle.Right : DraggedHandle.Left) |
+                       (drag.Y < 0 ? DraggedHandle.Bottom : DraggedHandle.Top);
             if (axialEntryTime.X > axialEntryTime.Y)
-                return drag.X < 0 ? RectEdge.Right : RectEdge.Left;
-            return drag.Y < 0 ? RectEdge.Bottom : RectEdge.Top;
+                return drag.X < 0 ? DraggedHandle.Right : DraggedHandle.Left;
+            return drag.Y < 0 ? DraggedHandle.Bottom : DraggedHandle.Top;
         }
     }
 }
