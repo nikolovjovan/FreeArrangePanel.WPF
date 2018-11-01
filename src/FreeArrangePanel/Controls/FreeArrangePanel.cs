@@ -25,6 +25,12 @@ namespace FreeArrangePanel.Controls
         ResizeSides = ResizeHorizontal | ResizeVertical,
         ResizeCorners = ResizeNESW | ResizeNWSE,
         ResizeOnly = ResizeSides | ResizeCorners,
+        MoveAndResizeHorizontal = MoveOnly | ResizeHorizontal,
+        MoveAndResizeVertical = MoveOnly | ResizeVertical,
+        MoveAndResizeNESW = MoveOnly | ResizeNESW,
+        MoveAndResizeNWSE = MoveOnly | ResizeNWSE,
+        MoveAndResizeSides = MoveOnly | ResizeSides,
+        MoveAndResizeCorners = MoveOnly | ResizeCorners,
         MoveAndResize = MoveOnly | ResizeOnly
     }
 
@@ -466,18 +472,7 @@ namespace FreeArrangePanel.Controls
             else
             {
                 var dragDelta = cursorPosition - mMouseDownPosition;
-                if (mMovingElements && (Math.Abs(dragDelta.X) > 0.01 || Math.Abs(dragDelta.Y) > 0.01))
-                {
-                    GenerateElementRects(out var selectedRects, out var staticRects);
-                    OverlapHelper.AdjustDragDelta(ref dragDelta, DraggedHandle.None, selectedRects, staticRects,
-                        LimitMovementToPanel ? RenderSize : Size.Empty);
-                    if (Math.Abs(dragDelta.X) > 0.01 || Math.Abs(dragDelta.Y) > 0.01)
-                        foreach (var element in SelectedElements)
-                        {
-                            SetLeft(element, GetLeft(element) + dragDelta.X);
-                            SetTop(element, GetTop(element) + dragDelta.Y);
-                        }
-                }
+                if (mMovingElements) ArrangeHelper.MoveSelectedElements(this, dragDelta);
                 else if (mMouseLeftDown && GetSelected(source))
                 {
                     if (dragDelta.Length > DragThreshold)

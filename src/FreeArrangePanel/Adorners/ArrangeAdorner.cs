@@ -1,11 +1,10 @@
-﻿using System;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using FreeArrangePanel.Controls;
 using FreeArrangePanel.Helpers;
 
 namespace FreeArrangePanel.Adorners
@@ -19,10 +18,12 @@ namespace FreeArrangePanel.Adorners
         ///     Does not render the visual element.
         /// </summary>
         None,
+
         /// <summary>
         ///     Renders the visual element INSIDE AdornedElement's bounds.
         /// </summary>
         Inside,
+
         /// <summary>
         ///     Renders the visual element OUTSIDE AdornedElement's bounds.
         /// </summary>
@@ -191,53 +192,104 @@ namespace FreeArrangePanel.Adorners
             var desiredWidth = AdornedElement.DesiredSize.Width;
             var desiredHeight = AdornedElement.DesiredSize.Height;
 
-            mSelectionOverlay.Arrange(new Rect(0, 0, desiredWidth, desiredHeight));
-
-            if (ResizeHandleRenderMode == RenderMode.None)
-            {
-                mHandles.Left.Arrange(new Rect());
-                mHandles.Right.Arrange(new Rect());
-                mHandles.Top.Arrange(new Rect());
-                mHandles.Bottom.Arrange(new Rect());
-                mHandles.TopLeft.Arrange(new Rect());
-                mHandles.TopRight.Arrange(new Rect());
-                mHandles.BottomLeft.Arrange(new Rect());
-                mHandles.BottomRight.Arrange(new Rect());
-                return finalSize;
-            }
+            var arrangeMode = Controls.FreeArrangePanel.GetArrangeMode(AdornedElement);
 
             var scaleFactor =
                 1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-
+            var strokeThickness = SelectionStrokeThickness * scaleFactor;
             var handleSize = HandleSize * scaleFactor;
 
-            if (ResizeHandleRenderMode == RenderMode.Inside)
+            var rectSelection = new Rect();
+            var rectLeft = new Rect();
+            var rectRight = new Rect();
+            var rectTop = new Rect();
+            var rectBottom = new Rect();
+            var rectTopLeft = new Rect();
+            var rectTopRight = new Rect();
+            var rectBottomLeft = new Rect();
+            var rectBottomRight = new Rect();
+
+            if (SelectionRenderMode == RenderMode.Inside)
+                rectSelection = new Rect(0, 0, desiredWidth, desiredHeight);
+            else if (SelectionRenderMode == RenderMode.Outside)
+                rectSelection = new Rect(-strokeThickness, -strokeThickness,
+                    desiredWidth + strokeThickness * 2, desiredHeight + strokeThickness * 2);
+
+            if ((arrangeMode & ~ArrangeMode.MoveOnly) != ArrangeMode.None)
             {
-                mHandles.Left.Arrange(new Rect(0, handleSize, handleSize, desiredHeight - 2 * handleSize));
-                mHandles.Right.Arrange(new Rect(desiredWidth - handleSize, handleSize, handleSize,
-                    desiredHeight - 2 * handleSize));
-                mHandles.Top.Arrange(new Rect(handleSize, 0, desiredWidth - 2 * handleSize, handleSize));
-                mHandles.Bottom.Arrange(new Rect(handleSize, desiredHeight - handleSize, desiredWidth - 2 * handleSize,
-                    handleSize));
-                mHandles.TopLeft.Arrange(new Rect(0, 0, handleSize, handleSize));
-                mHandles.TopRight.Arrange(new Rect(desiredWidth - handleSize, 0, handleSize, handleSize));
-                mHandles.BottomLeft.Arrange(new Rect(0, desiredHeight - handleSize, handleSize, handleSize));
-                mHandles.BottomRight.Arrange(new Rect(desiredWidth - handleSize, desiredHeight - handleSize, handleSize,
-                    handleSize));
+                if (ResizeHandleRenderMode == RenderMode.Inside)
+                {
+                    if ((arrangeMode & ArrangeMode.ResizeHorizontal) != 0)
+                    {
+                        rectLeft = new Rect(0, handleSize, handleSize, desiredHeight - 2 * handleSize);
+                        rectRight = new Rect(desiredWidth - handleSize, handleSize,
+                            handleSize, desiredHeight - 2 * handleSize);
+                    }
+
+                    if ((arrangeMode & ArrangeMode.ResizeVertical) != 0)
+                    {
+                        rectTop = new Rect(handleSize, 0, desiredWidth - 2 * handleSize, handleSize);
+                        rectBottom = new Rect(handleSize, desiredHeight - handleSize,
+                            desiredWidth - 2 * handleSize, handleSize);
+                    }
+
+                    if ((arrangeMode & ArrangeMode.ResizeNWSE) != 0)
+                    {
+                        rectTopLeft = new Rect(0, 0, handleSize, handleSize);
+                        rectBottomRight = new Rect(desiredWidth - handleSize, desiredHeight - handleSize,
+                            handleSize, handleSize);
+                    }
+
+                    if ((arrangeMode & ArrangeMode.ResizeNESW) != 0)
+                    {
+                        rectTopRight = new Rect(desiredWidth - handleSize, 0, handleSize, handleSize);
+                        rectBottomLeft = new Rect(0, desiredHeight - handleSize, handleSize, handleSize);
+                    }
+                }
+                else if (ResizeHandleRenderMode == RenderMode.Outside)
+                {
+                    if (SelectionRenderMode != RenderMode.None)
+                    {
+                        var offset = (handleSize + strokeThickness) / 2;
+                        rectSelection = new Rect(-offset, -offset,
+                            desiredWidth + offset * 2, desiredHeight + offset * 2);
+                    }
+
+                    if ((arrangeMode & ArrangeMode.ResizeHorizontal) != 0)
+                    {
+                        rectLeft = new Rect(-handleSize, (desiredHeight - handleSize) / 2, handleSize, handleSize);
+                        rectRight = new Rect(desiredWidth, (desiredHeight - handleSize) / 2, handleSize, handleSize);
+                    }
+
+                    if ((arrangeMode & ArrangeMode.ResizeVertical) != 0)
+                    {
+                        rectTop = new Rect((desiredWidth - handleSize) / 2, -handleSize, handleSize, handleSize);
+                        rectBottom = new Rect((desiredWidth - handleSize) / 2, desiredHeight, handleSize, handleSize);
+                    }
+
+                    if ((arrangeMode & ArrangeMode.ResizeNWSE) != 0)
+                    {
+                        rectTopLeft = new Rect(-handleSize, -handleSize, handleSize, handleSize);
+                        rectBottomRight = new Rect(desiredWidth, desiredHeight, handleSize, handleSize);
+                    }
+
+                    if ((arrangeMode & ArrangeMode.ResizeNESW) != 0)
+                    {
+                        rectTopRight = new Rect(desiredWidth, -handleSize, handleSize, handleSize);
+                        rectBottomLeft = new Rect(-handleSize, desiredHeight, handleSize, handleSize);
+                    }
+                }
             }
-            else
-            {
-                mHandles.Left.Arrange(new Rect(-handleSize, (desiredHeight - handleSize) / 2, handleSize, handleSize));
-                mHandles.Right.Arrange(new Rect(desiredWidth, (desiredHeight - handleSize) / 2, handleSize,
-                    handleSize));
-                mHandles.Top.Arrange(new Rect((desiredWidth - handleSize) / 2, -handleSize, handleSize, handleSize));
-                mHandles.Bottom.Arrange(
-                    new Rect((desiredWidth - handleSize) / 2, desiredHeight, handleSize, handleSize));
-                mHandles.TopLeft.Arrange(new Rect(-handleSize, -handleSize, handleSize, handleSize));
-                mHandles.TopRight.Arrange(new Rect(desiredWidth, -handleSize, handleSize, handleSize));
-                mHandles.BottomLeft.Arrange(new Rect(-handleSize, desiredHeight, handleSize, handleSize));
-                mHandles.BottomRight.Arrange(new Rect(desiredWidth, desiredHeight, handleSize, handleSize));
-            }
+
+            mSelectionOverlay.Arrange(rectSelection);
+            mHandles.Left.Arrange(rectLeft);
+            mHandles.Right.Arrange(rectRight);
+            mHandles.Top.Arrange(rectTop);
+            mHandles.Bottom.Arrange(rectBottom);
+            mHandles.TopLeft.Arrange(rectTopLeft);
+            mHandles.TopRight.Arrange(rectTopRight);
+            mHandles.BottomLeft.Arrange(rectBottomLeft);
+            mHandles.BottomRight.Arrange(rectBottomRight);
 
             return finalSize;
         }
@@ -257,10 +309,12 @@ namespace FreeArrangePanel.Adorners
 
         /// <inheritdoc />
         /// <summary>
-        ///     A custom <see cref="UIElement" /> solely used for rendering the selection overlay.
+        ///     A custom <see cref="FrameworkElement" /> solely used for rendering the selection overlay.
         /// </summary>
-        private class SelectionOverlay : UIElement
+        private class SelectionOverlay : FrameworkElement
         {
+            private readonly ArrangeAdorner mParent;
+
             public SelectionOverlay(ArrangeAdorner parent)
             {
                 IsHitTestVisible = false;
@@ -269,29 +323,21 @@ namespace FreeArrangePanel.Adorners
 
             protected override void OnRender(DrawingContext drawingContext)
             {
+                if (ActualWidth < double.Epsilon || ActualHeight < double.Epsilon) return;
+
                 var scaleFactor =
                     1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
 
-                if (mParent.SelectionRenderMode == RenderMode.None) return;
-
-                var strokeThickness = mParent.HandleStroke != null ? mParent.SelectionStrokeThickness * scaleFactor : 0;
+                var strokeThickness =
+                    mParent.SelectionStroke != null ? mParent.SelectionStrokeThickness * scaleFactor : 0;
 
                 var pen = strokeThickness > 0 ? new Pen(mParent.SelectionStroke, strokeThickness) : null;
 
-                Rect rect;
-                if (mParent.SelectionRenderMode == RenderMode.Inside)
-                    rect = new Rect(strokeThickness / 2, strokeThickness / 2,
-                        mParent.AdornedElement.RenderSize.Width - strokeThickness,
-                        mParent.AdornedElement.RenderSize.Height - strokeThickness);
-                else
-                    rect = new Rect(-strokeThickness / 2, -strokeThickness / 2,
-                        mParent.AdornedElement.RenderSize.Width + strokeThickness,
-                        mParent.AdornedElement.RenderSize.Height + strokeThickness);
+                var rect = new Rect(strokeThickness / 2, strokeThickness / 2,
+                    ActualWidth - strokeThickness, ActualHeight - strokeThickness);
 
                 DrawingHelper.DrawRectangle(drawingContext, mParent.SelectionFill, pen, rect);
             }
-
-            private readonly ArrangeAdorner mParent;
         }
 
         /// <inheritdoc />
@@ -310,10 +356,10 @@ namespace FreeArrangePanel.Adorners
 
             protected override void OnRender(DrawingContext drawingContext)
             {
+                if (ActualWidth < double.Epsilon || ActualHeight < double.Epsilon) return;
+
                 var scaleFactor =
                     1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-
-                if (ActualWidth < double.Epsilon || ActualHeight < double.Epsilon) return;
 
                 var strokeThickness = mParent.HandleStroke != null ? mParent.HandleStrokeThickness * scaleFactor : 0;
 
@@ -345,18 +391,20 @@ namespace FreeArrangePanel.Adorners
 
         #region Fields
 
+        /// <summary>
+        ///     A visual collection that is used to draw the visuals on this adorner.
+        /// </summary>
         private readonly VisualCollection mVisualChildren;
-        /// <remarks>
-        ///     The reason we are using a custom UIElement to render the overlay is so we can have hit test visibility set to true
-        ///     on
-        ///     the adorner to allow resize handles to register events, while still passing events through the selection overlay.
-        /// </remarks>
+
+        /// <summary>
+        ///     A custom UIElement used to render the overlay so that we can set hit test visibility set to true on the
+        ///     adorner to allow resize handles to register events, while still passing events through the selection overlay.
+        /// </summary>
         private readonly SelectionOverlay mSelectionOverlay;
-        /// <remarks>
-        ///     The reason we are using a custom UIElement to render the overlay is so we can have hit test visibility set to true
-        ///     on
-        ///     the adorner to allow resize handles to register events, while still passing events through the selection overlay.
-        /// </remarks>
+
+        /// <summary>
+        ///     A struct containing all the resize handles.
+        /// </summary>
         private ResizeHandles mHandles;
 
         private RenderMode mSelectionRenderMode, mResizeHandleRenderMode;
@@ -365,136 +413,51 @@ namespace FreeArrangePanel.Adorners
 
         #endregion
 
-        #region Resize Handlers
-
-        /// <summary>
-        ///     Handles resizing from the left resize handle.
-        /// </summary>
-        /// <param name="sender">An <see cref="object" /> that has raised this event.</param>
-        /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
-        private void HandleLeft(object sender, DragDeltaEventArgs args)
-        {
-            Resize(DraggedHandle.Left, new Vector(args.HorizontalChange, 0));
-        }
-
-        /// <summary>
-        ///     Handles resizing from the right resize handle.
-        /// </summary>
-        /// <param name="sender">An <see cref="object" /> that has raised this event.</param>
-        /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
-        private void HandleRight(object sender, DragDeltaEventArgs args)
-        {
-            Resize(DraggedHandle.Right, new Vector(args.HorizontalChange, 0));
-        }
-
-        /// <summary>
-        ///     Handles resizing from the top resize handle.
-        /// </summary>
-        /// <param name="sender">An <see cref="object" /> that has raised this event.</param>
-        /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
-        private void HandleTop(object sender, DragDeltaEventArgs args)
-        {
-            Resize(DraggedHandle.Top, new Vector(0, args.VerticalChange));
-        }
-
-        /// <summary>
-        ///     Handles resizing from the bottom resize handle.
-        /// </summary>
-        /// <param name="sender">An <see cref="object" /> that has raised this event.</param>
-        /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
-        private void HandleBottom(object sender, DragDeltaEventArgs args)
-        {
-            Resize(DraggedHandle.Bottom, new Vector(0, args.VerticalChange));
-        }
-
-        /// <summary>
-        ///     Handles resizing from the top left resize handle.
-        /// </summary>
-        /// <param name="sender">An <see cref="object" /> that has raised this event.</param>
-        /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
-        private void HandleTopLeft(object sender, DragDeltaEventArgs args)
-        {
-            Resize(DraggedHandle.Top | DraggedHandle.Left, new Vector(args.HorizontalChange, args.VerticalChange));
-        }
-
-        /// <summary>
-        ///     Handles resizing from the top right resize handle.
-        /// </summary>
-        /// <param name="sender">An <see cref="object" /> that has raised this event.</param>
-        /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
-        private void HandleTopRight(object sender, DragDeltaEventArgs args)
-        {
-            Resize(DraggedHandle.Top | DraggedHandle.Right, new Vector(args.HorizontalChange, args.VerticalChange));
-        }
-
-        /// <summary>
-        ///     Handles resizing from the bottom left resize handle.
-        /// </summary>
-        /// <param name="sender">An <see cref="object" /> that has raised this event.</param>
-        /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
-        private void HandleBottomLeft(object sender, DragDeltaEventArgs args)
-        {
-            Resize(DraggedHandle.Bottom | DraggedHandle.Left, new Vector(args.HorizontalChange, args.VerticalChange));
-        }
-
-        /// <summary>
-        ///     Handles resizing from the bottom right resize handle.
-        /// </summary>
-        /// <param name="sender">An <see cref="object" /> that has raised this event.</param>
-        /// <param name="args">A <see cref="DragDeltaEventArgs" /> object that specifies event arguments.</param>
-        private void HandleBottomRight(object sender, DragDeltaEventArgs args)
-        {
-            Resize(DraggedHandle.Bottom | DraggedHandle.Right, new Vector(args.HorizontalChange, args.VerticalChange));
-        }
-
-        #endregion
-
         #region Helper Methods
-
-        /// <summary>
-        ///     Initializes resize handle and adds it to the visual tree.
-        /// </summary>
-        /// <param name="resizeHandle">A <see cref="ResizeHandle" /> that needs to be initialized.</param>
-        /// <param name="cursor">A <see cref="Cursor" /> that specifies the mouse cursor that will be shown on mouse hover.</param>
-        /// <param name="visualCollection">A <see cref="VisualCollection" /> this resize handle needs to be added to.</param>
-        private void InitializeResizeHandle(ref ResizeHandle resizeHandle, Cursor cursor,
-            VisualCollection visualCollection)
-        {
-            if (resizeHandle != null) return;
-            resizeHandle = new ResizeHandle(this) {Cursor = cursor};
-            visualCollection.Add(resizeHandle);
-        }
 
         /// <summary>
         ///     Initializes resize handles for this <see cref="ArrangeAdorner" />.
         /// </summary>
         private void InitializeResizeHandles()
         {
-            InitializeResizeHandle(ref mHandles.Left, Cursors.SizeWE, mVisualChildren);
-            InitializeResizeHandle(ref mHandles.Right, Cursors.SizeWE, mVisualChildren);
-            InitializeResizeHandle(ref mHandles.Top, Cursors.SizeNS, mVisualChildren);
-            InitializeResizeHandle(ref mHandles.Bottom, Cursors.SizeNS, mVisualChildren);
-            InitializeResizeHandle(ref mHandles.TopLeft, Cursors.SizeNWSE, mVisualChildren);
-            InitializeResizeHandle(ref mHandles.TopRight, Cursors.SizeNESW, mVisualChildren);
-            InitializeResizeHandle(ref mHandles.BottomLeft, Cursors.SizeNESW, mVisualChildren);
-            InitializeResizeHandle(ref mHandles.BottomRight, Cursors.SizeNWSE, mVisualChildren);
+            mHandles.Left = new ResizeHandle(this) {Cursor = Cursors.SizeWE};
+            mHandles.Right = new ResizeHandle(this) {Cursor = Cursors.SizeWE};
+            mHandles.Top = new ResizeHandle(this) {Cursor = Cursors.SizeNS};
+            mHandles.Bottom = new ResizeHandle(this) {Cursor = Cursors.SizeNS};
+            mHandles.TopLeft = new ResizeHandle(this) {Cursor = Cursors.SizeNWSE};
+            mHandles.TopRight = new ResizeHandle(this) {Cursor = Cursors.SizeNESW};
+            mHandles.BottomLeft = new ResizeHandle(this) {Cursor = Cursors.SizeNESW};
+            mHandles.BottomRight = new ResizeHandle(this) {Cursor = Cursors.SizeNWSE};
 
-            mHandles.Left.DragDelta += HandleLeft;
-            mHandles.Right.DragDelta += HandleRight;
-            mHandles.Top.DragDelta += HandleTop;
-            mHandles.Bottom.DragDelta += HandleBottom;
-            mHandles.TopLeft.DragDelta += HandleTopLeft;
-            mHandles.TopRight.DragDelta += HandleTopRight;
-            mHandles.BottomLeft.DragDelta += HandleBottomLeft;
-            mHandles.BottomRight.DragDelta += HandleBottomRight;
+            mHandles.Left.DragDelta += (sender, args) => Resize(Handle.Left, new Vector(args.HorizontalChange, 0));
+            mHandles.Right.DragDelta += (sender, args) => Resize(Handle.Right, new Vector(args.HorizontalChange, 0));
+            mHandles.Top.DragDelta += (sender, args) => Resize(Handle.Top, new Vector(0, args.VerticalChange));
+            mHandles.Bottom.DragDelta += (sender, args) => Resize(Handle.Bottom, new Vector(0, args.VerticalChange));
+            mHandles.TopLeft.DragDelta += (sender, args) =>
+                Resize(Handle.TopLeft, new Vector(args.HorizontalChange, args.VerticalChange));
+            mHandles.TopRight.DragDelta += (sender, args) =>
+                Resize(Handle.TopRight, new Vector(args.HorizontalChange, args.VerticalChange));
+            mHandles.BottomLeft.DragDelta += (sender, args) =>
+                Resize(Handle.BottomLeft, new Vector(args.HorizontalChange, args.VerticalChange));
+            mHandles.BottomRight.DragDelta += (sender, args) =>
+                Resize(Handle.BottomRight, new Vector(args.HorizontalChange, args.VerticalChange));
+
+            mVisualChildren.Add(mHandles.Left);
+            mVisualChildren.Add(mHandles.Right);
+            mVisualChildren.Add(mHandles.Top);
+            mVisualChildren.Add(mHandles.Bottom);
+            mVisualChildren.Add(mHandles.TopLeft);
+            mVisualChildren.Add(mHandles.TopRight);
+            mVisualChildren.Add(mHandles.BottomLeft);
+            mVisualChildren.Add(mHandles.BottomRight);
         }
 
         /// <summary>
-        ///     Resizes the <see cref="Adorner.AdornedElement" /> according to the specified handle and drag.
+        ///     Resizes the <see cref="Adorner.AdornedElement" /> according to the specified handle and delta.
         /// </summary>
-        /// <param name="handle">A <see cref="DraggedHandle" /> that specifies resize side/corner.</param>
-        /// <param name="drag">The drag <see cref="Vector" /> that specifies mouse drag of the specified resize handle.</param>
-        private void Resize(DraggedHandle handle, Vector drag)
+        /// <param name="handle">The <see cref="Handle" /> that is being dragged.</param>
+        /// <param name="delta">The drag delta <see cref="Vector" />.</param>
+        private void Resize(Handle handle, Vector delta)
         {
             if (!(AdornedElement is FrameworkElement adornedElement)) return;
             if (!(adornedElement.Parent is Controls.FreeArrangePanel panel)) return;
@@ -503,65 +466,7 @@ namespace FreeArrangePanel.Adorners
                 1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
             var minSize = (ResizeHandleRenderMode == RenderMode.Inside ? 3 : 1) * HandleSize * scaleFactor;
 
-            var oldWidth = adornedElement.Width;
-            var oldHeight = adornedElement.Height;
-
-            var newWidth = handle.HasFlag(DraggedHandle.Left) || handle.HasFlag(DraggedHandle.Right)
-                ? Math.Max(oldWidth + (handle.HasFlag(DraggedHandle.Left) ? -drag.X : drag.X),
-                    Math.Max(adornedElement.MinWidth, minSize))
-                : oldWidth;
-            var newHeight = handle.HasFlag(DraggedHandle.Top) || handle.HasFlag(DraggedHandle.Bottom)
-                ? Math.Max(oldHeight + (handle.HasFlag(DraggedHandle.Top) ? -drag.Y : drag.Y),
-                    Math.Max(adornedElement.MinHeight, minSize))
-                : oldHeight;
-
-            var diff = new Vector(newWidth - oldWidth, newHeight - oldHeight);
-
-            if (diff.X <= -OverlapHelper.Epsilon)
-            {
-                if (handle.HasFlag(DraggedHandle.Left))
-                    Canvas.SetLeft(adornedElement, Canvas.GetLeft(adornedElement) - diff.X);
-                adornedElement.Width = newWidth;
-            }
-
-            if (diff.Y <= -OverlapHelper.Epsilon)
-            {
-                if (handle.HasFlag(DraggedHandle.Top))
-                    Canvas.SetTop(adornedElement, Canvas.GetTop(adornedElement) - diff.Y);
-                adornedElement.Height = newHeight;
-            }
-
-            if (diff.X < OverlapHelper.Epsilon)
-            {
-                handle &= DraggedHandle.Top | DraggedHandle.Bottom;
-                drag.X = 0;
-            }
-
-            if (diff.Y < OverlapHelper.Epsilon)
-            {
-                handle &= DraggedHandle.Left | DraggedHandle.Right;
-                drag.Y = 0;
-            }
-
-            if (handle == DraggedHandle.None) return;
-
-            panel.GenerateElementRects(out var selectedRects, out var staticRects);
-            OverlapHelper.AdjustDragDelta(ref drag, handle, selectedRects, staticRects,
-                panel.LimitMovementToPanel ? panel.RenderSize : Size.Empty);
-
-            if (Math.Abs(drag.X) > OverlapHelper.Epsilon)
-            {
-                if (handle.HasFlag(DraggedHandle.Left))
-                    Canvas.SetLeft(adornedElement, Canvas.GetLeft(adornedElement) + drag.X);
-                adornedElement.Width += handle.HasFlag(DraggedHandle.Left) ? -drag.X : drag.X;
-            }
-
-            if (Math.Abs(drag.Y) > OverlapHelper.Epsilon)
-            {
-                if (handle.HasFlag(DraggedHandle.Top))
-                    Canvas.SetTop(adornedElement, Canvas.GetTop(adornedElement) + drag.Y);
-                adornedElement.Height += handle.HasFlag(DraggedHandle.Top) ? -drag.Y : drag.Y;
-            }
+            ArrangeHelper.ResizeSelectedElement(panel, handle, delta, minSize);
         }
 
         #endregion
