@@ -75,11 +75,10 @@ namespace FreeArrangePanel.Helpers
             if (!(Math.Abs(delta.X) > Epsilon) && !(Math.Abs(delta.Y) > Epsilon)) return;
 
             foreach (var element in panel.SelectedElements)
-                if (Controls.FreeArrangePanel.GetArrangeMode(element).HasFlag(ArrangeMode.MoveOnly))
-                {
-                    Canvas.SetLeft(element, Canvas.GetLeft(element) + delta.X);
-                    Canvas.SetTop(element, Canvas.GetTop(element) + delta.Y);
-                }
+            {
+                Canvas.SetLeft(element, Canvas.GetLeft(element) + delta.X);
+                Canvas.SetTop(element, Canvas.GetTop(element) + delta.Y);
+            }
         }
 
         /// <summary>
@@ -123,16 +122,19 @@ namespace FreeArrangePanel.Helpers
                 element.Height = newHeight;
             }
 
-            if (diff.X < Epsilon)
+            if (!double.IsNaN(diff.X) && !double.IsNaN(diff.Y))
             {
-                handle &= Handle.Top | Handle.Bottom;
-                delta.X = 0;
-            }
+                if (diff.X < Epsilon)
+                {
+                    handle &= Handle.Top | Handle.Bottom;
+                    delta.X = 0;
+                }
 
-            if (diff.Y < Epsilon)
-            {
-                handle &= Handle.Left | Handle.Right;
-                delta.Y = 0;
+                if (diff.Y < Epsilon)
+                {
+                    handle &= Handle.Left | Handle.Right;
+                    delta.Y = 0;
+                }
             }
 
             if (handle == Handle.None) return;
@@ -257,18 +259,28 @@ namespace FreeArrangePanel.Helpers
                 rect.Width += Math.Abs(drag.X);
                 rect.Height += Math.Abs(drag.Y);
             }
-            if ((handle & Handle.Left) != 0)
+
+            if (handle.HasFlag(Handle.Left) && rect.Width - drag.X > 0)
             {
                 rect.X += drag.X;
                 rect.Width -= drag.X;
             }
-            if ((handle & Handle.Top) != 0)
+
+            if (handle.HasFlag(Handle.Right) && rect.Width + drag.X > 0)
+            {
+                rect.Width += drag.X;
+            }
+
+            if (handle.HasFlag(Handle.Top) && rect.Height - drag.Y > 0)
             {
                 rect.Y += drag.Y;
                 rect.Height -= drag.Y;
             }
-            if ((handle & Handle.Right) != 0) rect.Width += drag.X;
-            if ((handle & Handle.Bottom) != 0) rect.Height += drag.Y;
+
+            if (handle.HasFlag(Handle.Bottom) && rect.Height + drag.Y > 0)
+            {
+                rect.Height += drag.Y;
+            }
 
             return rect;
         }

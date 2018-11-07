@@ -129,6 +129,16 @@ namespace FreeArrangePanel.Controls
         }
 
         /// <summary>
+        ///     Gets or sets the selection <see cref="RenderMode" />.
+        /// </summary>
+        public RenderMode SelectionRenderMode { get; set; } = RenderMode.Inside;
+
+        /// <summary>
+        ///     Gets or sets the resize handle <see cref="RenderMode" />.
+        /// </summary>
+        public RenderMode ResizeHandleRenderMode { get; set; } = RenderMode.Outside;
+
+        /// <summary>
         ///     Gets or sets a <see cref="bool" /> that specifies whether to forward mouse events to the underlying
         ///     controls.
         /// </summary>
@@ -156,20 +166,18 @@ namespace FreeArrangePanel.Controls
         public bool PreventOverlap { get; set; } = true;
 
         /// <summary>
+        ///     Gets or sets a <see cref="bool" /> that specifies whether to enable moving and resizing of children of this panel.
+        /// </summary>
+        /// <returns>
+        ///     A <see cref="bool" />. This default value is <see langword="true" />.
+        /// </returns>
+        public bool ArrangingEnabled { get; set; } = true;
+
+        /// <summary>
         ///     Gets a list of currently selected elements.
         /// </summary>
-        /// <returns>A <see cref="IList{UIElement}" /> that contains currently selected elements.</returns>
+        /// <returns>A <see cref="IList{T}" /> that contains currently selected elements.</returns>
         public IList<UIElement> SelectedElements { get; }
-
-        /// <summary>
-        ///     Gets or sets the selection <see cref="RenderMode" />.
-        /// </summary>
-        public RenderMode SelectionRenderMode { get; set; } = RenderMode.Inside;
-
-        /// <summary>
-        ///     Gets or sets the resize handle <see cref="RenderMode" />.
-        /// </summary>
-        public RenderMode ResizeHandleRenderMode { get; set; } = RenderMode.Outside;
 
         /// <summary>
         ///     Specifies the <see cref="ArrangeMode" /> of the child element.
@@ -338,6 +346,8 @@ namespace FreeArrangePanel.Controls
         {
             base.OnPreviewMouseLeftButtonDown(e);
 
+            if (!ArrangingEnabled) return;
+
             mMouseLeftDown = true;
             mControlDown = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
 
@@ -372,6 +382,8 @@ namespace FreeArrangePanel.Controls
         protected override void OnPreviewMouseLeftButtonUp(MouseButtonEventArgs e)
         {
             base.OnPreviewMouseLeftButtonUp(e);
+
+            if (!ArrangingEnabled) return;
 
             mMouseLeftDown = false;
 
@@ -432,6 +444,8 @@ namespace FreeArrangePanel.Controls
         {
             base.OnPreviewMouseMove(e);
 
+            if (!ArrangingEnabled) return;
+
             var source = (UIElement) e.Source;
             var cursorPosition = e.GetPosition(source);
 
@@ -473,20 +487,17 @@ namespace FreeArrangePanel.Controls
             {
                 var dragDelta = cursorPosition - mMouseDownPosition;
                 if (mMovingElements) ArrangeHelper.MoveSelectedElements(this, dragDelta);
-                else if (mMouseLeftDown && GetSelected(source))
+                else if (mMouseLeftDown && mCanBeMoved && GetSelected(source) && dragDelta.Length > DragThreshold)
                 {
-                    if (dragDelta.Length > DragThreshold)
-                    {
-                        mMovingElements = true;
+                    mMovingElements = true;
 
-                        // Hide the selection overlays before starting the move
-                        foreach (var selectedElement in SelectedElements)
-                            SetSelectionOverlayVisibility(selectedElement, false);
+                    // Hide the selection overlays before starting the move
+                    foreach (var selectedElement in SelectedElements)
+                        SetSelectionOverlayVisibility(selectedElement, false);
 
-                        // Hide the resize overlay if there was only one selected element
-                        if (SelectedElements.Count == 1)
-                            SetResizeHandleVisibility(SelectedElements[0], false);
-                    }
+                    // Hide the resize overlay if there was only one selected element
+                    if (SelectedElements.Count == 1)
+                        SetResizeHandleVisibility(SelectedElements[0], false);
                 }
             }
 
@@ -500,6 +511,8 @@ namespace FreeArrangePanel.Controls
         protected override void OnKeyDown(KeyEventArgs e)
         {
             base.OnKeyDown(e);
+
+            if (!ArrangingEnabled) return;
 
             var movement = new Point(0, 0);
 
@@ -607,6 +620,11 @@ namespace FreeArrangePanel.Controls
         private bool mDragSelecting;
 
         /// <summary>
+        ///     Specifies whether all the selected elements can be moved.
+        /// </summary>
+        private bool mCanBeMoved;
+
+        /// <summary>
         ///     Specifies whether the selected elements are being moved.
         /// </summary>
         private bool mMovingElements;
@@ -658,6 +676,9 @@ namespace FreeArrangePanel.Controls
             {
                 // Always add the element to the list if it is not already added
                 SelectedElements.Add(element);
+                // If this element cannot be moved then we cannot move any selected element
+                if (SelectedElements.Count == 1) mCanBeMoved = true;
+                mCanBeMoved &= GetArrangeMode(element).HasFlag(ArrangeMode.MoveOnly);
                 // We can resize the element only if it is the only selected element
                 SetResizeHandleVisibility(element, SelectedElements.Count == 1);
                 // Otherwise we must disable resizing if one more element gets selected
@@ -667,7 +688,19 @@ namespace FreeArrangePanel.Controls
             else
             {
                 // Always remove the element from the list except if we are deselecting all elements
-                if (remove) SelectedElements.Remove(element);
+                if (remove)
+                {
+                    SelectedElements.Remove(element);
+                    // We must update the flag by iterating through the list since we do not know
+                    // if multiple elements have blocked the movement of the group
+                    mCanBeMoved = true;
+                    foreach (var selectedElement in SelectedElements)
+                    {
+                        if (GetArrangeMode(selectedElement).HasFlag(ArrangeMode.MoveOnly)) continue;
+                        mCanBeMoved = false;
+                        break; // Break as soon as the flag is set to false
+                    }
+                }
                 // Disable resizing for this element since it is deselected
                 SetResizeHandleVisibility(element, false);
                 // If the element was removed and there is exactly one element left, enable resizing

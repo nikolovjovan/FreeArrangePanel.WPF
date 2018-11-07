@@ -70,7 +70,7 @@ namespace FreeArrangePanel.Adorners
             set
             {
                 mSelectionRenderMode = value;
-                mSelectionOverlay?.InvalidateVisual();
+                AdornerLayer.GetAdornerLayer(AdornedElement)?.Update();
             }
         }
 
@@ -96,7 +96,7 @@ namespace FreeArrangePanel.Adorners
             set
             {
                 mSelectionFill = value;
-                mSelectionOverlay?.InvalidateVisual();
+                AdornerLayer.GetAdornerLayer(AdornedElement)?.Update();
             }
         }
 
@@ -109,7 +109,7 @@ namespace FreeArrangePanel.Adorners
             set
             {
                 mSelectionStroke = value;
-                mSelectionOverlay?.InvalidateVisual();
+                AdornerLayer.GetAdornerLayer(AdornedElement)?.Update();
             }
         }
 
@@ -123,7 +123,7 @@ namespace FreeArrangePanel.Adorners
             set
             {
                 mSelectionStrokeThickness = value > 0 ? value : 0;
-                mSelectionOverlay?.InvalidateVisual();
+                AdornerLayer.GetAdornerLayer(AdornedElement)?.Update();
             }
         }
 
