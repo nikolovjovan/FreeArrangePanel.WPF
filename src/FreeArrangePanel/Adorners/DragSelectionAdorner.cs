@@ -32,7 +32,7 @@ namespace FreeArrangePanel.Adorners
         #region Properties
 
         /// <summary>
-        ///     Gets or sets a <see cref="Point"/> that specifies the first point for the drag selection rectangle.
+        ///     Gets or sets a <see cref="Point" /> that specifies the first point for the drag selection rectangle.
         /// </summary>
         public Point StartPoint
         {
@@ -45,7 +45,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets a <see cref="Point"/> that specifies the second point for the drag selection rectangle.
+        ///     Gets or sets a <see cref="Point" /> that specifies the second point for the drag selection rectangle.
         /// </summary>
         public Point EndPoint
         {
@@ -58,7 +58,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets a <see cref="Brush"/> that paints the interior area of the drag selection rectangle.
+        ///     Gets or sets a <see cref="Brush" /> that paints the interior area of the drag selection rectangle.
         /// </summary>
         public Brush Fill
         {
@@ -71,7 +71,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets a <see cref="Brush"/> that specifies how the drag selection rectangle outline is painted.
+        ///     Gets or sets a <see cref="Brush" /> that specifies how the drag selection rectangle outline is painted.
         /// </summary>
         public Brush Stroke
         {
@@ -84,7 +84,7 @@ namespace FreeArrangePanel.Adorners
         }
 
         /// <summary>
-        ///     Gets or sets a <see cref="double"/> that specifies the width of the drag selection rectangle outline.
+        ///     Gets or sets a <see cref="double" /> that specifies the width of the drag selection rectangle outline.
         /// </summary>
         [TypeConverter(typeof(LengthConverter))]
         public double StrokeThickness

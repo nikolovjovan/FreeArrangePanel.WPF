@@ -459,14 +459,18 @@ namespace FreeArrangePanel.Adorners
         /// <param name="delta">The drag delta <see cref="Vector" />.</param>
         private void Resize(Handle handle, Vector delta)
         {
-            if (!(AdornedElement is FrameworkElement adornedElement)) return;
-            if (!(adornedElement.Parent is Controls.FreeArrangePanel panel)) return;
+            if (!(AdornedElement is FrameworkElement element)) return;
 
             var scaleFactor =
                 1 / (PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice.M11 ?? 1.0);
-            var minSize = (ResizeHandleRenderMode == RenderMode.Inside ? 3 : 1) * HandleSize * scaleFactor;
+            var minValidSize = (ResizeHandleRenderMode == RenderMode.Inside ? 3 : 1) * HandleSize * scaleFactor;
 
-            ArrangeHelper.ResizeSelectedElement(panel, handle, delta, minSize);
+            var minSize = new Size(minValidSize > element.MinWidth ? minValidSize : element.MinWidth,
+                minValidSize > element.MinHeight ? minValidSize : element.MinHeight);
+
+            var maxSize = new Size(element.MaxWidth, element.MaxHeight);
+
+            ArrangeHelper.ResizeElement(element, handle, delta, minSize, maxSize);
         }
 
         #endregion

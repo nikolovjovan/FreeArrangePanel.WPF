@@ -237,6 +237,17 @@ namespace FreeArrangePanel.Controls
             return (bool) element.GetValue(IsOverlappableProperty);
         }
 
+        /// <summary>
+        ///     Gets the selection of the specified element.
+        /// </summary>
+        /// <param name="element">A child element of this panel.</param>
+        /// <returns>True if selected, False if deselected.</returns>
+        public static bool GetSelected(UIElement element)
+        {
+            if (element == null) throw new ArgumentNullException(nameof(element));
+            return (bool) element.GetValue(SelectedProperty);
+        }
+
         #endregion
 
         #region Other Methods
@@ -260,34 +271,6 @@ namespace FreeArrangePanel.Controls
             foreach (var selectedElement in SelectedElements)
                 SetSelected(selectedElement, false, false);
             SelectedElements.Clear();
-        }
-
-        /// <summary>
-        ///     Generates the list of selected elements rects and the list of static elements rects.
-        /// </summary>
-        /// <param name="selectedRects">A <see cref="IList{Rect}" /> of selected elements rects.</param>
-        /// <param name="staticRects">A <see cref="IList{Rect}" /> of non selected static elements rects.</param>
-        internal void GenerateElementRects(out IList<Rect> selectedRects, out IList<Rect> staticRects)
-        {
-            selectedRects = staticRects = null;
-
-            if (SelectedElements.Count == 0 || !LimitMovementToPanel && !PreventOverlap) return;
-
-            selectedRects = new List<Rect>();
-            foreach (var element in SelectedElements)
-                selectedRects.Add(new Rect(
-                    GetLeft(element), GetTop(element),
-                    element.RenderSize.Width, element.RenderSize.Height));
-
-            if (!PreventOverlap) return;
-
-            staticRects = new List<Rect>();
-            foreach (UIElement child in Children)
-                if (!GetSelected(child) && !GetIsOverlappable(child) &&
-                    child.Visibility == Visibility.Visible)
-                    staticRects.Add(new Rect(
-                        GetLeft(child), GetTop(child),
-                        child.RenderSize.Width, child.RenderSize.Height));
         }
 
         #endregion
@@ -707,17 +690,6 @@ namespace FreeArrangePanel.Controls
                 if (remove && SelectedElements.Count == 1)
                     SetResizeHandleVisibility(SelectedElements[0], true);
             }
-        }
-
-        /// <summary>
-        ///     Gets the selection of the specified element.
-        /// </summary>
-        /// <param name="element">A child element of this panel.</param>
-        /// <returns>True if selected, False if deselected.</returns>
-        private static bool GetSelected(UIElement element)
-        {
-            if (element == null) throw new ArgumentNullException(nameof(element));
-            return (bool) element.GetValue(SelectedProperty);
         }
 
         /// <summary>
