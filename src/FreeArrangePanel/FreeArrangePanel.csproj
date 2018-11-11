@@ -48,10 +48,6 @@
     <Reference Include="PresentationFramework" />
   </ItemGroup>
   <ItemGroup>
-    <Page Include="Themes\Generic.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Compile Include="Adorners\ArrangeAdorner.cs" />
     <Compile Include="Adorners\DragSelectionAdorner.cs" />
     <Compile Include="Controls\FreeArrangePanel.cs">
