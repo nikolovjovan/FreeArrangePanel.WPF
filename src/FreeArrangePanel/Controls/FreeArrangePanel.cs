@@ -145,6 +145,12 @@ namespace FreeArrangePanel.Controls
         /// <returns>
         ///     A <see cref="bool" />. This default value is <see langword="false" />.
         /// </returns>
+        /// <remarks>
+        ///     Setting this to True won't capture mouse events so when you exit the panel the element
+        ///     could still be dragged even if you released the left mouse button. If you really need to forward
+        ///     mouse events to underlying controls, you should use <see cref="ArrangingEnabled" /> property to
+        ///     temporarily disable arranging and then re-enable it in the control's mouse event handler.
+        /// </remarks>
         public bool ForwardMouseEvents { get; set; } = false;
 
         /// <summary>
@@ -172,6 +178,14 @@ namespace FreeArrangePanel.Controls
         ///     A <see cref="bool" />. This default value is <see langword="true" />.
         /// </returns>
         public bool ArrangingEnabled { get; set; } = true;
+
+        /// <summary>
+        ///     Gets or sets a <see cref="bool" /> that specifies whether to enable keyboard shortcuts for this panel.
+        /// </summary>
+        /// <returns>
+        ///     A <see cref="bool" />. This default value is <see langword="true" />.
+        /// </returns>
+        public bool KeyboardShortcutsEnabled { get; set; } = true;
 
         /// <summary>
         ///     Gets a list of currently selected elements.
@@ -334,7 +348,16 @@ namespace FreeArrangePanel.Controls
             mMouseLeftDown = true;
             mControlDown = (Keyboard.Modifiers & ModifierKeys.Control) != 0;
 
-            if (!ReferenceEquals(e.Source, this))
+            if (ReferenceEquals(e.Source, this))
+            {
+                mDragSelectionAdorner.StartPoint = mDragSelectionAdorner.EndPoint = e.GetPosition(this);
+
+                if (!mControlDown) DeselectAll();
+
+                CaptureMouse();
+                Focus();
+            }
+            else
             {
                 var element = (UIElement) e.Source;
 
@@ -346,18 +369,10 @@ namespace FreeArrangePanel.Controls
                     SetSelected(element, true);
                 }
 
+                if (ForwardMouseEvents) return;
+
                 element.CaptureMouse();
-
-                if (!ForwardMouseEvents) e.Handled = true;
-                return;
             }
-
-            mDragSelectionAdorner.StartPoint = mDragSelectionAdorner.EndPoint = e.GetPosition(this);
-
-            if (!mControlDown) DeselectAll();
-
-            CaptureMouse();
-            Focus();
 
             e.Handled = true;
         }
@@ -370,11 +385,32 @@ namespace FreeArrangePanel.Controls
 
             mMouseLeftDown = false;
 
-            if (!ReferenceEquals(e.Source, this))
+            if (ReferenceEquals(e.Source, this))
+            {
+                if (mDragSelecting)
+                {
+                    // Hide the drag selection overlay
+                    SetDragSelectionOverlayVisibility(false);
+
+                    // Show the resize overlay if there was only one selected element
+                    if (SelectedElements.Count == 1)
+                        SetResizeHandleVisibility(SelectedElements[0], true);
+
+                    // Select the elements that were drag selected (automatically updates the overlays)
+                    foreach (UIElement child in Children)
+                        SetSelected(child, GetDragSelected(child));
+                }
+
+                mMovingElements = false;
+
+                ReleaseMouseCapture();
+            }
+            else
             {
                 var element = (UIElement) e.Source;
 
-                if (!mMovingElements)
+                if (mMovingElements) mMovingElements = false;
+                else
                 {
                     if (mControlDown)
                     {
@@ -387,8 +423,6 @@ namespace FreeArrangePanel.Controls
                     }
                 }
 
-                mMovingElements = false;
-
                 // Show the selection overlays since the move is done
                 foreach (var selectedElement in SelectedElements)
                     SetSelectionOverlayVisibility(selectedElement, true);
@@ -397,28 +431,10 @@ namespace FreeArrangePanel.Controls
                 if (SelectedElements.Count == 1)
                     SetResizeHandleVisibility(SelectedElements[0], true);
 
+                if (ForwardMouseEvents) return;
+
                 element.ReleaseMouseCapture();
-
-                if (!ForwardMouseEvents) e.Handled = true;
-
-                return;
             }
-
-            if (mDragSelecting)
-            {
-                // Hide the drag selection overlay
-                SetDragSelectionOverlayVisibility(false);
-                // Show the resize overlay if there was only one selected element
-                if (SelectedElements.Count == 1)
-                    SetResizeHandleVisibility(SelectedElements[0], true);
-                // Select the elements that were drag selected (automatically updates the overlays)
-                foreach (UIElement child in Children)
-                    SetSelected(child, GetDragSelected(child));
-            }
-
-            mMovingElements = false;
-
-            ReleaseMouseCapture();
 
             e.Handled = true;
         }
@@ -482,6 +498,8 @@ namespace FreeArrangePanel.Controls
                     if (SelectedElements.Count == 1)
                         SetResizeHandleVisibility(SelectedElements[0], false);
                 }
+
+                if (ForwardMouseEvents) return;
             }
 
             e.Handled = true;
@@ -495,9 +513,9 @@ namespace FreeArrangePanel.Controls
         {
             base.OnKeyDown(e);
 
-            if (!ArrangingEnabled) return;
+            if (!ArrangingEnabled || !KeyboardShortcutsEnabled) return;
 
-            var movement = new Point(0, 0);
+            var move = new Vector();
 
             switch (e.Key)
             {
@@ -505,28 +523,32 @@ namespace FreeArrangePanel.Controls
                     if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) SelectAll();
                     break;
                 case Key.NumPad8:
-                    movement = new Point(0, -1);
+                    move.Y = -1;
                     break;
                 case Key.NumPad2:
-                    movement = new Point(0, 1);
+                    move.Y = 1;
                     break;
                 case Key.NumPad4:
-                    movement = new Point(-1, 0);
+                    move.X = -1;
                     break;
                 case Key.NumPad6:
-                    movement = new Point(1, 0);
+                    move.X = 1;
                     break;
                 case Key.NumPad7:
-                    movement = new Point(-1, -1);
+                    move.X = -1;
+                    move.Y = -1;
                     break;
                 case Key.NumPad9:
-                    movement = new Point(1, -1);
+                    move.X = 1;
+                    move.Y = -1;
                     break;
                 case Key.NumPad1:
-                    movement = new Point(-1, 1);
+                    move.X = -1;
+                    move.Y = 1;
                     break;
                 case Key.NumPad3:
-                    movement = new Point(1, 1);
+                    move.X = 1;
+                    move.Y = 1;
                     break;
                 case Key.Up: goto case Key.NumPad8;
                 case Key.Down: goto case Key.NumPad2;
@@ -534,12 +556,8 @@ namespace FreeArrangePanel.Controls
                 case Key.Right: goto case Key.NumPad6;
             }
 
-            if (movement != new Point(0, 0))
-                foreach (var element in SelectedElements)
-                {
-                    SetLeft(element, GetLeft(element) + movement.X);
-                    SetTop(element, GetTop(element) + movement.Y);
-                }
+            if (Math.Abs(move.X) > ArrangeHelper.Epsilon || Math.Abs(move.Y) > ArrangeHelper.Epsilon)
+                ArrangeHelper.MoveSelectedElements(this, move);
 
             e.Handled = true;
         }

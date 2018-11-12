@@ -12,7 +12,7 @@ namespace FreeArrangePanel.Helpers
     ///     Specifies the resize handle that is being dragged or <see cref="None" /> if the element is being moved.
     /// </summary>
     [Flags]
-    internal enum Handle
+    public enum Handle
     {
         /// <summary>
         ///     The element is being moved.
@@ -259,7 +259,7 @@ namespace FreeArrangePanel.Helpers
     /// <summary>
     ///     A helper class used for various arranging calculations.
     /// </summary>
-    internal static class ArrangeHelper
+    public static class ArrangeHelper
     {
         #region Public
 
